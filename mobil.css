@@ -50,6 +50,15 @@ body { font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; -webkit-tap-h
 #hub .tr-koerper { display:block !important; position:absolute; top:16px; right:12px; }
 #hub .tr-figuren { gap:4px; }
 #hub .tr-figuren svg { width:48px; height:108px; }
+/* Bewegungen: Am Mac laufen sie in der rechten Kartenhälfte hinter großen Figuren. Am Handy sind die Figuren
+   klein und oben rechts — in voller Größe liefen Ringe, Linien und Wellen quer durch Titel und Knöpfe.
+   Deshalb: Fokus-Motive (Druck, Zug, Pump, Seil) auf Figurengröße, alle Motive nur um die Figuren herum. */
+#hub .tr-fx.fokus { transform:translate(-50%,-50%) scale(.42) !important;
+  -webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%, #000 45%, transparent 100%);
+          mask-image:radial-gradient(ellipse 50% 50% at 50% 50%, #000 45%, transparent 100%); }
+#hub .tr-hero .tr-fx:not(.fokus) {
+  -webkit-mask-image:radial-gradient(ellipse 42% 48% at 80% 30%, #000 30%, transparent 100%) !important;
+          mask-image:radial-gradient(ellipse 42% 48% at 80% 30%, #000 30%, transparent 100%) !important; }
 #hub .tr-hero .akt { margin-top:18px; gap:8px; }
 #hub .tr-hero .akt > * { flex:1 1 auto; justify-content:center; min-height:46px; }
 #hub .tr-cta, #hub .tr-ghost, #hub .tr-fertig { font-size:15px !important; min-height:46px; justify-content:center; }

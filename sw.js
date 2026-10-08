@@ -1,6 +1,6 @@
 // Hülle der App offline verfügbar halten. Netz zuerst, damit Änderungen sofort
 // ankommen; ohne Netz die zuletzt geladene Fassung. GitHub-Anfragen gehen nie hier durch.
-const V = 'training-v2';
+const V = 'training-v3';
 const HUELLE = ['./', './index.html', './app.js', './mobil.css', './vendor/moment.min.js',
                 './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(HUELLE))); self.skipWaiting(); });
