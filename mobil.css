@@ -59,6 +59,13 @@ body { font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; -webkit-tap-h
 #hub .tr-hero .tr-fx:not(.fokus) {
   -webkit-mask-image:radial-gradient(ellipse 42% 48% at 80% 30%, #000 30%, transparent 100%) !important;
           mask-image:radial-gradient(ellipse 42% 48% at 80% 30%, #000 30%, transparent 100%) !important; }
+/* Der Boden (Beine) lag unten hinter den Knöpfen und war mit der Maske oben weg: Am Handy wandert er
+   als Streifen direkt unter die Füße der Figuren, links ausgeblendet, damit er die Zahlen nicht kreuzt. */
+#hub .tr-hero .tr-fx:has(.fx-boden) { inset:0 0 auto 40% !important; height:150px;
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 45%), linear-gradient(180deg, #000 55%, transparent 100%) !important;
+  -webkit-mask-composite:source-in;
+          mask-image:linear-gradient(90deg, transparent 0%, #000 45%), linear-gradient(180deg, #000 55%, transparent 100%) !important;
+          mask-composite:intersect; }
 #hub .tr-hero .akt { margin-top:18px; gap:8px; }
 #hub .tr-hero .akt > * { flex:1 1 auto; justify-content:center; min-height:46px; }
 #hub .tr-cta, #hub .tr-ghost, #hub .tr-fertig { font-size:15px !important; min-height:46px; justify-content:center; }
