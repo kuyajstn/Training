@@ -97,6 +97,11 @@ body { font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; -webkit-tap-h
 #hub .tr-modal { position:fixed !important; align-items:flex-end !important; padding:0 !important; z-index:70; }
 #hub .tr-dlg { width:100% !important; max-height:90dvh; overflow:auto; border-radius:24px 24px 0 0 !important;
   padding:20px 18px calc(var(--sa-u) + 18px) !important; border-bottom:0; }
+/* Schließen-Kreuz: am Mac ein kleines ✕, am Handy eine runde Fläche mit 44 px Trefferzone (Apples Mindestmaß). */
+#hub .tr-close { position:relative; flex:none; width:34px; height:34px; display:grid !important; place-items:center;
+  padding:0 !important; margin:-3px -3px 0 0; border-radius:50% !important; font-size:16px !important; font-weight:600;
+  background:var(--raised) !important; color:var(--tx2) !important; }
+#hub .tr-close::after { content:''; position:absolute; inset:-5px; }
 #hub .tr-in { font-size:16px !important; padding:10px 11px !important; }
 #hub .tr-set { grid-template-columns:minmax(0,1fr) 46px 46px 64px !important; gap:6px; padding:7px 0; }
 #hub .tr-set .tr-in { padding:10px 6px !important; text-align:center; }
