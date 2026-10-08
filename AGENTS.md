@@ -24,5 +24,9 @@ Hub benutzt (`dv.pages/page/current/el`, `app.vault.*`, `require('fs')`). `mobil
   Funkloch dazu mit `OHNE_NETZ=1`. Bildschirmfoto in iPhone-Breite: `werkzeug/rahmen.html`
   (Testmodus: `?view=plan`, `?klick=Selektor|Selektor=>Wert`).
 - **Nach Änderungen an der Hülle** in `sw.js` die Version `V` hochzählen.
-- Ausgeliefert über GitHub Pages (`kuyajstn/training`, öffentlich — der Code enthält keine Daten
+- **App-Symbole nur aus `icon-512.png` verkleinern** (`sips -z 180 180 icon-512.png --out icon-180.png`), nie direkt
+  per Chrome-Screenshot erzeugen: Chrome öffnet kein Fenster unter ~500 px, kleine Symbole zeigen dann nur den
+  linken Rand des Motivs (passiert am 08.10.). Nach neuem Symbol `?v=` in `index.html` und Manifest hochzählen,
+  am iPhone das Symbol löschen und neu „Zum Home-Bildschirm“ — iOS übernimmt es nur beim Hinzufügen.
+- Ausgeliefert über GitHub Pages (`kuyajstn/Training`, öffentlich — der Code enthält keine Daten
   und keinen Schlüssel; der Schlüssel liegt nur im Browser des Handys).
