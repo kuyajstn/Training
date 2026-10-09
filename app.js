@@ -42,9 +42,11 @@ const konf  = () => DEV ? { repo:'dev/vault', branch:'main', token:'' } : lies(K
 // Bewusst nicht in HUELLE: Ohne Netz kann die Datenbank das Produkt ohnehin nicht nennen.
 // Die Version der .wasm muss zur .js passen (heute zxing-wasm 3.1.3, steht in der .js).
 if (!('BarcodeDetector' in window)) {
-  const VENDOR = new URL('vendor/', document.currentScript?.src || location.href).href;
+  // Pfad beim Start merken (currentScript gibt es nur jetzt), die Adresse erst beim Laden bilden.
+  const skript = document.currentScript?.src;
   let leser = null;
   const laden = () => leser || (leser = new Promise((fertig, fehler) => {
+    const VENDOR = new URL('vendor/', skript || location.href).href;
     const s = document.createElement('script');
     s.src = VENDOR + 'barcode-detector.js';
     s.onload = () => {
