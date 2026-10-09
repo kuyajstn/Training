@@ -84,5 +84,8 @@ Hub gegen eine Kopie geschrieben: anlegen, „gegessen“ umschalten, Favorit, e
 als Blatt. Haken an Zutaten und Schritten nur zum Mitkochen (nicht gespeichert), Bildschirm bleibt an (Wake Lock).
 **Vor dem Ausrollen prüfen:** Jede Datei aus `HUELLE` in `sw.js` muss existieren, sonst scheitert die Installation, und
 auch das Training verliert seinen Offline-Stand.
-Am Handy bewusst nicht: „Beschreiben“ (geht an Claudian) und die offenen Tasks zum Hub (`01 Action` wird nicht geladen).
+Am Handy bewusst nicht: die offenen Tasks zum Hub (`01 Action` wird nicht geladen). **„Beschreiben“ geht seit 09.10.**: ohne Claudian, als
+Eintrag, der auf Werte wartet (Kitchen Hub, Stufe 3). Dafür hat `shim()` `app.isMobile = true` (der Hub fragt danach) und
+`vault.createBinary`: Das Foto liegt sofort im Bilder-Speicher und geht als `art:'bild'` (schon Base64, nicht im Text-Cache) durch die
+Warteschlange, vor dem Eintrag, der darauf zeigt. Scheitert es, ist nur das Foto weg, nicht der Eintrag.
 Entschieden (Justin, 09.10.): **Am Handy je Hub eine eigene App** mit eigenem Symbol, kein Umschalter. Der Nachbau von Obsidian (`shim()`) wird trotzdem geteilt, nicht kopiert.
