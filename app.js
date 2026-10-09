@@ -245,14 +245,74 @@ async function hubStarten() {
 // Der Abstand lässt den Hub erst seinen Dialog schließen und die Meldung setzen.
 const neuStarten = () => { clearTimeout(zeitplan); zeitplan = setTimeout(hubStarten, 60); };
 
-// Am Handy die Zahlentastatur statt der vollen: Der Hub kennt nur type="text".
+// Am Handy keine Tastatur für die Sätze, sondern das Rad (Wdh × kg). Die Felder bleiben die des Hubs,
+// das Rad füllt sie nur. Sonst (Notiz, Cardio, Wiegen) die Zahlentastatur statt der vollen.
 function zahlenfelder(root) {
   const setzen = () => {
-    root.querySelectorAll('.g-s, .g-w').forEach(i => { i.inputMode = 'numeric'; });
-    root.querySelectorAll('.g-g').forEach(i => { i.inputMode = 'decimal'; });
+    root.querySelectorAll('.tr-satz .tr-in').forEach(i => { i.readOnly = true; i.inputMode = 'none'; });
+    root.querySelectorAll('.g-g:not([readonly])').forEach(i => { i.inputMode = 'decimal'; });
   };
   setzen(); new MutationObserver(setzen).observe(root, { childList:true, subtree:true });
 }
+
+// ── Rad ─────────────────────────────────────────────────────────
+// Zwei Walzen, die beim Scrollen einrasten. Das Scrollen macht das iPhone selbst,
+// deshalb fühlen sich Schwung und Einrasten an wie in einer echten App. Kein Ticken:
+// Web-Apps dürfen den Vibrationsmotor nicht ansprechen.
+const ZEILE = 44;
+const WDH = ['', ...Array.from({ length:40 }, (_, i) => String(i + 1))];
+const KG_RASTER = ['', ...Array.from({ length:241 }, (_, i) => String(+(i * 1.25).toFixed(2)))];   // 0 … 300 kg
+const kgAnz = v => v === '' ? '–' : v.replace('.', ',');
+let rad = null;
+
+function radSchliessen() { rad?.el.remove(); rad = null; }
+
+function radOeffnen(zeile) {
+  radSchliessen();
+  const ue = zeile.closest('.tr-ue');
+  const wIn = zeile.querySelector('.g-w'), gIn = zeile.querySelector('.g-g');
+  const gJetzt = gIn.value.trim().replace(',', '.');
+  // Gewichte außerhalb des 1,25er-Rasters (Maschinen mit 84 kg) bleiben wählbar: Sie kommen dazu.
+  const kg = KG_RASTER.includes(String(+gJetzt)) || gJetzt === '' ? KG_RASTER
+    : [...KG_RASTER, String(+gJetzt)].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a - b));
+  const nr = [...ue.querySelectorAll('.tr-satz')].indexOf(zeile) + 1;
+  const el = document.createElement('div');
+  el.id = 'rad';
+  el.innerHTML = `<div class="rad-blatt">
+    <div class="rad-kopf"><div><b>Satz ${nr}</b><span>${ue.querySelector('.tr-ue-kopf b').textContent}</span></div>
+      <button class="rad-weiter">Nächster</button><button class="rad-ok" aria-label="Fertig">✓</button></div>
+    <div class="rad-walzen"><div class="rad-band"></div>
+      <div class="rad-walze" data-f="w">${WDH.map(v => `<div>${v || '–'}</div>`).join('')}</div>
+      <div class="rad-mal">×</div>
+      <div class="rad-walze" data-f="g">${kg.map(v => `<div>${kgAnz(v)}</div>`).join('')}</div>
+      <div class="rad-einheit">kg</div></div></div>`;
+  document.body.appendChild(el);
+  rad = { el, zeile };
+  const walzen = { w:[el.querySelector('[data-f="w"]'), WDH, wIn], g:[el.querySelector('[data-f="g"]'), kg, gIn] };
+  for (const [walze, werte, feld] of Object.values(walzen)) {
+    const jetzt = feld === gIn ? (gJetzt === '' ? '' : String(+gJetzt)) : feld.value.trim();
+    walze.scrollTop = Math.max(0, werte.indexOf(jetzt)) * ZEILE;
+    let t = null;
+    walze.addEventListener('scroll', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const v = werte[Math.min(werte.length - 1, Math.max(0, Math.round(walze.scrollTop / ZEILE)))];
+        feld.value = feld === gIn ? (v === '' ? '' : v.replace('.', ',')) : v;
+      }, 90);
+    }, { passive:true });
+  }
+  el.addEventListener('click', e => { if (e.target === el) radSchliessen(); });
+  el.querySelector('.rad-ok').onclick = radSchliessen;
+  el.querySelector('.rad-weiter').onclick = () => {
+    const alle = [...document.querySelectorAll('#tr-dlg .tr-satz:not(.aus)')];
+    const naechste = alle[alle.indexOf(zeile) + 1];
+    naechste ? radOeffnen(naechste) : radSchliessen();
+  };
+}
+hubEl.addEventListener('click', e => {
+  const feld = e.target.closest('.tr-satz .tr-in');
+  if (feld) radOeffnen(feld.closest('.tr-satz'));
+});
 
 // ── Statuszeile: nur, wenn es etwas zu sagen gibt ───────────────
 const statusEl = document.getElementById('status');

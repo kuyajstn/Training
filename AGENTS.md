@@ -17,6 +17,8 @@ Hub benutzt (`dv.pages/page/current/el`, `app.vault.*`, `require('fs')`). `mobil
 
 - **Benutzt der Hub eine neue Obsidian-Funktion, stürzt die App ab**, bis sie in `shim()` in `app.js`
   nachgebildet ist. Prüfen mit `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)"` auf den Hub.
+- **Das Rad (Wdh × kg) gehört nur der App** (`radOeffnen` in `app.js`): Es füllt die Felder `.tr-satz .g-w/.g-g`, die der
+  Hub zeichnet. Benennt der Hub diese Klassen um, findet das Rad nichts mehr.
 - **Am Handy wird nur angelegt und angehängt**, nie umgeschrieben. `modify` wirft, wenn der neue Text
   nicht mit dem alten beginnt. Den aktiven Plan stellt nur der Mac um.
 - **Prüfen ohne echte Daten:** `node werkzeug/testserver.mjs` liest aus dem Vault, Schreiben ist gesperrt.
