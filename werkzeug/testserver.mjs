@@ -4,7 +4,7 @@
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path'; import crypto from 'node:crypto'; import { fileURLToPath } from 'node:url';
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VAULT = process.env.VAULT || '/Users/justin.k/00 Master/MindOS';
-const TYP = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.png':'image/png', '.webmanifest':'application/manifest+json', '.svg':'image/svg+xml' };
+const TYP = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.png':'image/png', '.webmanifest':'application/manifest+json', '.svg':'image/svg+xml', '.wasm':'application/wasm' };
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x'); const p = decodeURIComponent(url.pathname);
   const m = p.match(/^\/gh\/repos\/[^/]+\/[^/]+\/contents\/(.*)$/);

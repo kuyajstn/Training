@@ -35,6 +35,33 @@ const lies  = k => { try { return JSON.parse(localStorage.getItem(k)); } catch {
 const merke = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const konf  = () => DEV ? { repo:'dev/vault', branch:'main', token:'' } : lies(K_KONF);
 
+// ── Barcode lesen (Kitchen Hub, Stufe 2) ────────────────────────
+// Der Hub liest Barcodes aus Fotos mit BarcodeDetector. Obsidian am Mac hat das eingebaut,
+// Safari am iPhone nicht. Dann steht hier derselbe Name, und erst beim ersten Foto wird der
+// Leser geladen (vendor/barcode-detector.js + zxing_reader.wasm, zusammen rund 1,1 MB, MIT).
+// Bewusst nicht in HUELLE: Ohne Netz kann die Datenbank das Produkt ohnehin nicht nennen.
+// Die Version der .wasm muss zur .js passen (heute zxing-wasm 3.1.3, steht in der .js).
+if (!('BarcodeDetector' in window)) {
+  const VENDOR = new URL('vendor/', document.currentScript?.src || location.href).href;
+  let leser = null;
+  const laden = () => leser || (leser = new Promise((fertig, fehler) => {
+    const s = document.createElement('script');
+    s.src = VENDOR + 'barcode-detector.js';
+    s.onload = () => {
+      const api = window.BarcodeDetectionAPI;
+      api.prepareZXingModule({ overrides: { locateFile: (p, pre) => p.endsWith('.wasm') ? VENDOR + p : pre + p } });
+      fertig(api.BarcodeDetector);
+    };
+    s.onerror = () => { leser = null; fehler(new Error('Barcode-Leser nicht geladen — ohne Netz?')); };
+    document.head.append(s);
+  }));
+  window.BarcodeDetector = class {
+    constructor(o) { this.o = o; }
+    async detect(bild) { const B = await laden(); return new B(this.o).detect(bild); }
+    static async getSupportedFormats() { return (await laden()).getSupportedFormats(); }
+  };
+}
+
 // ── GitHub ──────────────────────────────────────────────────────
 const pfadUrl = p => p.split('/').map(encodeURIComponent).join('/');
 const ausB64  = b => new TextDecoder().decode(Uint8Array.from(atob(String(b).replace(/\s/g, '')), c => c.charCodeAt(0)));
