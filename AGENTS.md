@@ -34,3 +34,14 @@ Hub benutzt (`dv.pages/page/current/el`, `app.vault.*`, `require('fs')`). `mobil
   am iPhone das Symbol löschen und neu „Zum Home-Bildschirm“ — iOS übernimmt es nur beim Hinzufügen.
 - Ausgeliefert über GitHub Pages (`kuyajstn/Training`, öffentlich — der Code enthält keine Daten
   und keinen Schlüssel; der Schlüssel liegt nur im Browser des Handys).
+
+## Nächster Kandidat: Kitchen Hub (gemessen 09.10.)
+
+Viermal so groß wie der Training Hub (324 KB) und mit Schreibwegen, die die App heute verweigert:
+`processFrontMatter` (3×, u. a. `done`-Toggle am Meal Plan, `pause` an der Daily Note), `vault.modify` mit
+Umschreiben statt Anhängen (5×, z. B. `Zutaten Check`, `Einkaufsliste`, `Reste Ablage`), `trash`/`trashFile`,
+`metadataCache.getFileCache` (Überschriften von `Vorrat.md`), `getResourcePath` (Bilder), `executeCommandById`.
+Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "MindOS/02 Life OS/Ernährung/Kitchen Hub.md" | sort | uniq -c`.
+Offene Bauentscheidung: Umschreiben am Handy nur mit SHA-Prüfung (GitHub lehnt ab, wenn die Datei sich
+inzwischen geändert hat) und ohne Warteschlange — oder diese Schreibwege am Handy weglassen.
+Und: eine App mit mehreren Hubs (Umschalter) statt je Hub eine eigene Seite.
