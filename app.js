@@ -84,9 +84,18 @@ function zusammensetzen() {
 
 async function aktualisieren() {
   const alt = lies(K_CACHE) || {}, neu = {};
-  await jeweils(DATEIEN, 6, async p => {
+  // Einzeldateien: erst ihre Ordner auflisten (je eine kleine Abfrage, liefert den sha jeder Datei),
+  // dann nur holen, was sich geändert hat. Bis 09.10. kamen Hub (324 KB) und BLS (481 KB) bei
+  // jedem Öffnen komplett neu.
+  const shas = {};
+  await jeweils([...new Set(DATEIEN.map(p => p.split('/').slice(0, -1).join('/')))], 4, async o => {
+    for (const e of (await gh(o)) || []) if (e.type === 'file') shas[e.path] = e.sha;
+  });
+  await jeweils(DATEIEN.filter(p => p in shas), 6, async p => {
+    if (alt[p]?.sha === shas[p]) { neu[p] = alt[p]; return; }
     const j = await gh(p);
-    if (j) neu[p] = { sha:j.sha, text:dateiText(j) };
+    // Über 1 MB liefert GitHub den Inhalt nicht mit (encoding "none"), dann roh nachholen.
+    if (j) neu[p] = { sha:j.sha, text:j.encoding === 'none' ? await (await gh(p, { roh:true })).text() : dateiText(j) };
   });
   for (const o of ORDNER) {
     const liste = await gh(o) || [];

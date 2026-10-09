@@ -45,6 +45,9 @@ Der Schlüssel (`tr-konf`) gilt für beide, alles andere im Speicher trägt das 
   Schreibtests nur gegen eine Kopie: `SCHREIBEN=1 VAULT=/tmp/vault-kopie node werkzeug/testserver.mjs`,
   Funkloch dazu mit `OHNE_NETZ=1`. Bildschirmfoto in iPhone-Breite: `werkzeug/rahmen.html`
   (Testmodus: `?view=plan`, `?klick=Selektor|Selektor=>Wert`; die Küche mit `?app=kitchen`).
+- **Laden beim Öffnen:** Ordner aus `ordner` und die Ordner der Einzeldateien werden aufgelistet (liefert den sha
+  jeder Datei), geholt wird nur, was sich geändert hat. Über 1 MB liefert GitHub keinen Inhalt mit, dann roh nachgeholt.
+  Die Küche lädt so auch den BLS (`99 System/Utility/Views/BLS/bls.json`, 481 KB) nur bei Änderung.
 - **Bilder** sucht die App im Frontmatter der geladenen Notizen (z. B. `banner:`), holt sie einmal und legt sie
   im Cache-Speicher des Browsers ab (nicht im localStorage, der hat nur wenige MB). Ein Bild, dessen Pfad nicht
   stimmt, fehlt am Handy genauso wie im Hub am Mac.
