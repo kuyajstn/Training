@@ -1,4 +1,4 @@
-# Training-App — Arbeitsplatz (seit 09.10. auch die Küche)
+# MindOS-Apps — Arbeitsplatz (Training, Küche)
 
 Hubs aus dem Vault als Web-Apps fürs iPhone, je Hub ein Symbol auf dem Startbildschirm, kein App Store.
 **Die Apps haben keinen eigenen Hub-Code.** Sie laden den Hub aus dem Vault-Repo auf GitHub und führen dessen
@@ -7,12 +7,14 @@ Apps **eine** Datei.
 
 | | Training | Küche |
 |---|---|---|
-| Adresse | `/` (`index.html`) | `/kitchen/` |
+| Adresse | `/training/` | `/kitchen/` |
 | Hub | `02 Life OS/Training Hub.md` | `02 Life OS/Ernährung/Kitchen Hub.md` |
-| Welche Dateien | Standard in `app.js` | `window.HUB_APP` in `kitchen/index.html` |
-| Handy-Layout | `mobil.css` | `kitchen/mobil.css` |
+| Welche Dateien | `window.HUB_APP` in `training/index.html` | `window.HUB_APP` in `kitchen/index.html` |
+| Handy-Layout | `training/mobil.css` | `kitchen/mobil.css` |
 
-Gemeinsam: `app.js`, `basis.css` (Seite, Statusleiste, Einrichten), `sw.js` (eine Hülle für beide), `vendor/`.
+Gemeinsam: `app.js`, `basis.css` (Seite, Statusleiste, Einrichten, Leser), `sw.js` (eine Hülle für alle), `vendor/`,
+`index.html` (Übersicht mit allen Apps). Eine neue App = ein neuer Ordner mit `index.html`, `mobil.css`, Manifest, Symbolen
+und ein Eintrag in `HUELLE` und in der Übersicht.
 Der Schlüssel (`tr-konf`) gilt für beide, alles andere im Speicher trägt das Kürzel der App (`tr-`, `ki-`).
 
 ## Gegenstück im Denkraum
@@ -46,11 +48,11 @@ Der Schlüssel (`tr-konf`) gilt für beide, alles andere im Speicher trägt das 
 - **Nach Änderungen an der Hülle** in `sw.js` die Version `V` hochzählen. Am iPhone kommt eine Änderung
   beim **zweiten** Öffnen an (erst lädt die App die neue `sw.js`, dann damit die neuen Dateien). GitHub Pages
   lässt Dateien 10 Minuten zwischenspeichern; `sw.js` fragt deshalb mit `cache:'no-cache'` jedes Mal nach.
-- **App-Symbole nur aus `icon-512.png` verkleinern** (`sips -z 180 180 icon-512.png --out icon-180.png`), nie direkt
+- **App-Symbole nur aus `icon-512.png` verkleinern** (`sips -z 180 180 training/icon-512.png --out training/icon-180.png`), nie direkt
   per Chrome-Screenshot erzeugen: Chrome öffnet kein Fenster unter ~500 px, kleine Symbole zeigen dann nur den
   linken Rand des Motivs (passiert am 08.10.). Nach neuem Symbol `?v=` in `index.html` und Manifest hochzählen,
   am iPhone das Symbol löschen und neu „Zum Home-Bildschirm“ — iOS übernimmt es nur beim Hinzufügen.
-- Ausgeliefert über GitHub Pages (`kuyajstn/Training`, öffentlich — der Code enthält keine Daten
+- Ausgeliefert über GitHub Pages (`kuyajstn/mindos-apps`, bis 09.10. `kuyajstn/Training`; öffentlich — der Code enthält keine Daten
   und keinen Schlüssel; der Schlüssel liegt nur im Browser des Handys).
 
 ## Küche: Stand (09.10.)
