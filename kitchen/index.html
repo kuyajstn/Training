@@ -24,6 +24,14 @@ window.HUB_APP = {
            '99 System/Utility/Templates/Meal Library.md'],
   // Daily Journal: Pausetage und das Tagebuch. 01 Action fehlt bewusst (217 Tasks für eine kleine Liste).
   ordner:['02 Life OS/Ernährung/Meal Library', '02 Life OS/Ernährung/Meal Plan', '02 Life OS/Daily Journal'],
+  // Leiste unten: das Emoji der Reiter („📖 Tagebuch“) als Symbol über das Wort stellen.
+  // Die Klick-Logik des Hubs hängt am Knopf selbst (data-tab), nicht an dessen Text.
+  nachStart(root) {
+    root.querySelectorAll('.ml-tab').forEach(b => {
+      const m = b.textContent.trim().match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u);
+      if (m) b.innerHTML = `<i aria-hidden="true">${m[1]}</i><span>${m[2]}</span>`;
+    });
+  },
 };
 </script>
 </head>

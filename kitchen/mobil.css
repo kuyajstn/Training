@@ -1,5 +1,46 @@
 /* ═══════════════════════════════════════════════════════════════
    Handy-Layout über dem CSS des Kitchen Hubs (die gemeinsame Hülle steht in ../basis.css).
-   Der Hub bringt sein eigenes CSS mit — hier steht nur, was am Handy anders ist.
+   Der Hub bringt sein eigenes CSS mit (Farben als Variablen an .kh) — hier steht nur, was
+   am Handy anders ist. „#hub .kh …“ vorn, damit es gegen das CSS des Hubs gewinnt, das
+   später im Dokument steht.
    ═══════════════════════════════════════════════════════════════ */
 html, body { background:#0A0908; }
+
+/* Fläche: randlos, unten Platz für die Leiste. overflow sichtbar, sonst klebt der Kopf nicht. */
+#hub .kh { border-radius:0 !important; border:0 !important; overflow:visible !important; min-height:100dvh;
+  padding:0 14px calc(var(--sa-u) + 86px) !important; box-sizing:border-box; }
+
+/* Kopf: oben angeheftet, unter der Statusleiste des iPhones. */
+#hub .kh-kopf { position:sticky; top:0; z-index:30; margin:0 -14px 14px !important; padding:calc(var(--sa-o) + 8px) 16px 10px;
+  background:rgba(10,9,8,.86); -webkit-backdrop-filter:blur(18px) saturate(1.3); backdrop-filter:blur(18px) saturate(1.3); }
+#hub .kh-kopf .kh-h1 { margin:0 !important; font-size:26px; letter-spacing:-.02em; }
+
+/* Leiste unten statt Pillen oben: drei Reiter, Symbol über Wort. */
+#hub .kh-tabs { position:fixed; z-index:40; left:0; right:0; bottom:0; margin:0 !important; display:grid !important;
+  grid-template-columns:repeat(3, 1fr); gap:0 !important; padding:6px 8px calc(var(--sa-u) + 4px) !important;
+  background:rgba(10,9,8,.88); -webkit-backdrop-filter:blur(18px) saturate(1.3); backdrop-filter:blur(18px) saturate(1.3);
+  border:0 !important; border-top:1px solid rgba(255,255,255,.07) !important; }
+#hub .ml-tab { display:flex !important; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  padding:5px 0 3px !important; border:0 !important; border-radius:0 !important; background:none !important;
+  color:var(--tx3) !important; font-size:10.5px !important; font-weight:600 !important; }
+#hub .ml-tab i { font-style:normal; font-size:22px; line-height:1; filter:grayscale(1); opacity:.55; transition:opacity .15s, filter .15s; }
+#hub .ml-tab.is-active { color:var(--acc-hi) !important; background:none !important; }
+#hub .ml-tab.is-active i { filter:none; opacity:1; }
+
+/* Unter-Reiter (Woche · Was fehlt · Liste …) über die ganze Breite. */
+#hub .kh-seg { width:auto !important; display:flex; margin:0 0 16px !important; }
+#hub .kh-seg-btn { flex:1; text-align:center; min-height:34px; display:flex; align-items:center; justify-content:center; }
+
+/* Dialog als Blatt von unten, am Bildschirm statt an der Hub-Fläche. */
+#hub #ml-prep-modal { position:fixed !important; inset:0; z-index:70; border-radius:0 !important;
+  align-items:flex-end !important; justify-content:stretch !important; }
+#hub .kh #ml-prep-inner { width:100% !important; max-width:none !important; max-height:90dvh; overflow:auto; box-sizing:border-box;
+  border-radius:24px 24px 0 0 !important; border-bottom:0 !important; padding:20px 16px calc(var(--sa-u) + 18px) !important;
+  overscroll-behavior:contain; }
+
+/* 16 px in Eingabefeldern, sonst zoomt das iPhone beim Antippen hinein. */
+#hub .kh input, #hub .kh select, #hub .kh textarea { font-size:16px !important; }
+
+/* „Beschreiben“ übergibt an Claudian in Obsidian, das gibt es am Handy nicht. */
+#hub .kh .kt-mode[data-modus="ki"] { display:none !important; }
+#hub .kh .kt-modes { grid-template-columns:repeat(3, minmax(0, 1fr)) !important; }

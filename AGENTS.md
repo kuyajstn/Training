@@ -62,9 +62,13 @@ Umschreiben statt Anhängen (5×, z. B. `Zutaten Check`, `Einkaufsliste`, `Reste
 Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "MindOS/02 Life OS/Ernährung/Kitchen Hub.md" | sort | uniq -c`.
 Entschieden (Justin, 09.10.): **Umschreiben mit sha-Prüfung, auch aus der Warteschlange.** In `app.js` gebaut,
 dazu der Spielstand jede Minute und eine Ansage, wenn das Zusammenführen scheitert.
-**Gebaut, nicht ausgerollt:** alle Stellen nachgebildet, der Hub läuft im Testserver ohne Fehler mit allen drei Reitern.
-**Offen:** Handy-Layout (`kitchen/mobil.css`; Vorrang hat, was Justin am Handy tut: Planen, Zubereiten, Tracken),
-App-Symbol `kitchen/icon-*.png` (**vor dem Ausrollen Pflicht:** fehlt eine Datei aus `HUELLE`, scheitert die
-Installation von `sw.js`, und auch das Training verliert seinen Offline-Stand), dann ausrollen.
+**Gebaut und geprüft, noch nicht ausgerollt:** alle Stellen nachgebildet, Handy-Layout (Leiste unten, Kopf
+angeheftet, Dialog als Blatt), Symbol `kitchen/icon-*.png` (Quelle `werkzeug/icon-kitchen.html`, fotografiert mit
+headless Chrome: `--headless=new --window-size=512,512 --screenshot=…`, das geht auch unter 500 px). Mit dem echten
+Hub gegen eine Kopie geschrieben: anlegen, „gegessen“ umschalten, Favorit, entfernen.
+**Leser** (`leserOeffnen` in `app.js`): Am Mac öffnet der Hub Notizen in Obsidian, am Handy zeigt die App sie selbst
+als Blatt. Haken an Zutaten und Schritten nur zum Mitkochen (nicht gespeichert), Bildschirm bleibt an (Wake Lock).
+**Vor dem Ausrollen prüfen:** Jede Datei aus `HUELLE` in `sw.js` muss existieren, sonst scheitert die Installation, und
+auch das Training verliert seinen Offline-Stand.
 Am Handy bewusst nicht: „Beschreiben“ (geht an Claudian) und die offenen Tasks zum Hub (`01 Action` wird nicht geladen).
 Entschieden (Justin, 09.10.): **Am Handy je Hub eine eigene App** mit eigenem Symbol, kein Umschalter. Der Nachbau von Obsidian (`shim()`) wird trotzdem geteilt, nicht kopiert.

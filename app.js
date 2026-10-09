@@ -404,8 +404,16 @@ function shim(root) {
     metadataCache: {
       getFileCache: f => dateien[f?.path] ? { headings:ueberschriften(dateien[f.path].text), frontmatter:frontmatter(dateien[f.path].text).fm } : null,
     },
-    // Am Handy gibt es kein Obsidian, das Notizen öffnen oder Befehle ausführen könnte.
-    workspace: { getLeaf: () => ({ openFile: () => {} }), openLinkText: () => {} },
+    // Am Handy gibt es kein Obsidian: Notizen zeigt der Leser, Befehle laufen ins Leere.
+    workspace: {
+      getLeaf: () => ({ openFile: f => f && leserOeffnen(f.path) }),
+      openLinkText: (link, quelle) => {
+        const n = String(link).split('|')[0].replace(/#.*$/, '');
+        const p = [n, `${n}.md`, String(quelle || '').replace(/[^/]*$/, '') + `${n}.md`].find(x => dateien[x])
+          || Object.keys(dateien).find(x => x.endsWith(`/${n}.md`) || x === `${n}.md`);
+        if (p) leserOeffnen(p);
+      },
+    },
     commands: { executeCommandById: () => false },
   };
   const require = name => {
@@ -414,6 +422,86 @@ function shim(root) {
   };
   return { dv, app, require };
 }
+
+
+// ── Leser: Notiz öffnen ─────────────────────────────────────────
+// Am Mac öffnet ein Hub Notizen in Obsidian (Rezept antippen → die Rezeptnotiz). Am Handy
+// gibt es kein Obsidian, deshalb zeigt die App die Notiz selbst, als Blatt über dem Hub.
+// Nur lesen: Die Haken an Zutaten und Schritten sind zum Mitkochen und werden nicht gespeichert.
+// Solange das Blatt offen ist, bleibt der Bildschirm an (Wake Lock), sonst geht er beim Kochen aus.
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function bildZu(name) {
+  const n = String(name).split('|')[0].trim();
+  if (bilder[n]) return bilder[n];
+  const k = Object.keys(bilder).find(p => p.split('/').pop() === n.split('/').pop());
+  return k ? bilder[k] : null;
+}
+function zeile(t) {
+  return esc(t)
+    .replace(/!\[\[([^\]]+)\]\]/g, (m, n) => { const u = bildZu(n.replace(/&amp;/g, '&')); return u ? `<img src="${u}" alt="">` : ''; })
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2').replace(/\[\[([^\]]+)\]\]/g, (m, n) => n.split('/').pop().replace(/#.*$/, ''))
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>').replace(/==([^=]+)==/g, '<mark>$1</mark>');
+}
+function markdown(text) {
+  const body = text.replace(/^---\n[\s\S]*?\n---\n?/, '');
+  const out = []; let liste = null, tabelle = null, code = null, absatz = [];
+  const schliessen = () => {
+    if (absatz.length) { out.push(`<p>${absatz.map(zeile).join('<br>')}</p>`); absatz = []; }
+    if (liste) { out.push(`</${liste}>`); liste = null; }
+    if (tabelle) { out.push(`<div class="le-tab"><table>${tabelle.join('')}</table></div>`); tabelle = null; }
+  };
+  for (const z of body.split('\n')) {
+    if (code !== null) { if (/^\s*```/.test(z)) { out.push(`<pre>${esc(code)}</pre>`); code = null; } else code += z + '\n'; continue; }
+    if (/^\s*```/.test(z)) { schliessen(); code = ''; continue; }
+    if (/^\s*%%/.test(z) || /^\s*<!--.*-->\s*$/.test(z)) continue;
+    let m;
+    if (!z.trim()) { schliessen(); continue; }
+    if ((m = z.match(/^(#{1,6})\s+(.*)$/))) { schliessen(); const h = Math.min(4, Math.max(2, m[1].length)); out.push(`<h${h}>${zeile(m[2])}</h${h}>`); continue; }
+    if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(z)) { schliessen(); out.push('<hr>'); continue; }
+    if (/^\s*\|/.test(z)) {
+      if (!tabelle) { schliessen(); tabelle = []; }
+      if (/^\s*\|?\s*:?-{2,}/.test(z)) continue;
+      const zellen = z.trim().replace(/^\||\|$/g, '').split('|').map(c => `<td>${zeile(c.trim())}</td>`);
+      tabelle.push(`<tr>${zellen.join('')}</tr>`); continue;
+    }
+    if ((m = z.match(/^\s*>\s?(.*)$/))) { schliessen(); const c = m[1].replace(/^\[![^\]]+\][-+]?\s*/, ''); if (c) out.push(`<blockquote>${zeile(c)}</blockquote>`); continue; }
+    if ((m = z.match(/^(\s*)([-*+]|\d+[.)])\s+(?:\[( |x|X)\]\s+)?(.*)$/))) {
+      const art = /\d/.test(m[2]) ? 'ol' : 'ul';
+      if (absatz.length || tabelle) { const l = liste; liste = null; schliessen(); liste = l; }
+      if (liste !== art) { if (liste) out.push(`</${liste}>`); out.push(`<${art}>`); liste = art; }
+      const haken = m[3] !== undefined || art === 'ol';
+      out.push(`<li class="${haken ? 'le-hak' : ''}${m[3] && m[3] !== ' ' ? ' an' : ''}" style="margin-left:${Math.min(3, Math.floor(m[1].replace(/\t/g, '  ').length / 2)) * 16}px">${zeile(m[4])}</li>`);
+      continue;
+    }
+    if (liste || tabelle) schliessen();
+    absatz.push(z.trim());
+  }
+  schliessen(); if (code !== null) out.push(`<pre>${esc(code)}</pre>`);
+  return out.join('');
+}
+let wachSperre = null;
+async function leserOeffnen(pfad) {
+  const d = dateien[pfad]; if (!d) return;
+  document.getElementById('leser')?.remove();
+  const { fm } = frontmatter(d.text);
+  const titelbild = typeof fm.banner === 'string' ? bilder[fm.banner] : null;
+  const el = document.createElement('div'); el.id = 'leser';
+  el.innerHTML = `<div class="le-blatt" role="dialog" aria-modal="true">
+    <div class="le-kopf"><b>${esc(pfad.split('/').pop().replace(/\.md$/, ''))}</b><button class="le-zu" aria-label="Schließen">✕</button></div>
+    <div class="le-inhalt">${titelbild ? `<img class="le-banner" src="${titelbild}" alt="">` : ''}${markdown(d.text)}</div></div>`;
+  document.body.appendChild(el); document.body.classList.add('le-offen');
+  const zu = () => { el.remove(); document.body.classList.remove('le-offen'); wachSperre?.release().catch(() => {}); wachSperre = null; };
+  el.querySelector('.le-zu').onclick = zu;
+  el.addEventListener('click', e => { if (e.target === el) zu(); const li = e.target.closest('.le-hak'); if (li) li.classList.toggle('an'); });
+  try { wachSperre = await navigator.wakeLock?.request('screen'); } catch {}
+}
+// Kommt die App zurück in den Vordergrund, gibt iOS die Sperre frei: neu anfordern, solange das Blatt offen ist.
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !document.getElementById('leser')) return;
+  try { wachSperre = await navigator.wakeLock?.request('screen'); } catch {}
+});
 
 // ── Hub ausführen ───────────────────────────────────────────────
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -432,6 +520,8 @@ async function hubStarten() {
     try { await new AsyncFunction('dv', 'app', 'require', code)(dv, app, require); }
     catch (e) { console.error(e); root.insertAdjacentHTML('beforeend', `<div class="ta-fehler">Der Hub-Code ist abgestürzt: ${String(e.message || e).replace(/</g, '&lt;')}</div>`); }
     if (APP.rad) zahlenfelder(root);
+    // Was eine App am fertigen Hub fürs Handy umstellt (z. B. Symbol über Wort in der Leiste).
+    try { APP.nachStart?.(root); } catch (e) { console.warn('nachStart', e); }
   } finally {
     laeuft = false;
     if (nochmal) { nochmal = false; hubStarten(); }
