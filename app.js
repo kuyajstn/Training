@@ -6,7 +6,10 @@
 //   Ändert sich der Hub, ändert sich die App beim nächsten Öffnen mit.
 //
 //   Schreiben: neue Dateien (Gym-Logs) und Anhängen (Cardio, Körperdaten) direkt
-//   per GitHub-API. Ohne Netz in eine Warteschlange, abgeschickt, sobald Netz da ist.
+//   per GitHub-API. Seit 09.10. auch Umschreiben (für den Kitchen Hub), aber nur, wenn
+//   die Datei auf GitHub noch die ist, die die App geladen hat. Sonst wird nichts
+//   überschrieben, und der Eintrag steht als „nicht übernommen“ oben in der Leiste.
+//   Ohne Netz in eine Warteschlange, abgeschickt, sobald Netz da ist.
 //   Am Mac holt der automatische Spielstand die Einträge alle 10 Minuten herunter.
 //   Warum so: MindOS/05 Stack/Context/Decisions/Training-App am Handy führt den Hub-Code aus.md
 // ═══════════════════════════════════════════════════════════════
@@ -18,7 +21,7 @@ const ORDNER  = ['02 Life OS/Training Logs'];
 
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const API = DEV ? '/gh' : 'https://api.github.com';
-const K_KONF = 'tr-konf', K_CACHE = 'tr-cache', K_WARTE = 'tr-warte', K_STAND = 'tr-stand';
+const K_KONF = 'tr-konf', K_CACHE = 'tr-cache', K_WARTE = 'tr-warte', K_STAND = 'tr-stand', K_NICHT = 'tr-nicht';
 
 const lies  = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const merke = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -60,6 +63,7 @@ function zusammensetzen() {
   for (const op of lies(K_WARTE) || []) {
     if (op.art === 'neu' && !d[op.pfad]) d[op.pfad] = { sha:null, text:op.text };
     if (op.art === 'anhang' && d[op.pfad]) d[op.pfad].text = d[op.pfad].text.replace(/\s*$/, '') + op.text;
+    if (op.art === 'ersetzen') d[op.pfad] = { sha:d[op.pfad]?.sha ?? null, text:op.text };
   }
   dateien = d;
 }
@@ -85,13 +89,35 @@ async function aktualisieren() {
 }
 
 // ── Schreiben ───────────────────────────────────────────────────
+// Jeder Schreibvorgang kommt erst in die Warteschlange, und die wird streng der Reihe nach
+// abgearbeitet. Sonst schickten zwei schnelle Haken bei langsamem Netz beide auf dem alten
+// Stand los, und GitHub hielte den zweiten für eine fremde Änderung.
 const nachricht = p => `Training-App: ${p.split('/').pop().replace(/\.md$/, '')}`;
+const dateiName = p => p.split('/').pop().replace(/\.md$/, '');
 
+class Konflikt extends HttpFehler {
+  constructor(op) { super(409, `${dateiName(op.pfad)} wurde inzwischen woanders geändert. Nicht übernommen.`); }
+}
+
+// Liefert, auf welchem sha die Änderung beruhte (vor) und welchen sie erzeugt hat (nach).
+// `vor` ist nur gesetzt, wenn GitHub genau den Stand hatte, den die App kannte.
 async function senden(op) {
-  const k = konf(), cache = lies(K_CACHE) || {};
+  const k = konf(), cache = lies(K_CACHE) || {}, bekannt = cache[op.pfad]?.sha ?? null;
+  let r;
   if (op.art === 'neu') {
     const j = await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:zuB64(op.text), branch:k.branch } });
-    cache[op.pfad] = { sha:j.content.sha, text:op.text };
+    cache[op.pfad] = { sha:j.content.sha, text:op.text }; r = { vor:null, nach:j.content.sha };
+  } else if (op.art === 'ersetzen') {
+    // Mit dem sha, auf dem die Änderung beruht: Hat sich die Datei auf GitHub inzwischen
+    // geändert, lehnt GitHub ab (409, ohne sha bei vorhandener Datei 422), nichts wird überschrieben.
+    try {
+      const body = { message:nachricht(op.pfad), content:zuB64(op.text), branch:k.branch, ...(op.sha ? { sha:op.sha } : {}) };
+      const j = await gh(op.pfad, { methode:'PUT', body });
+      cache[op.pfad] = { sha:j.content.sha, text:op.text }; r = { vor:op.sha, nach:j.content.sha };
+    } catch (e) {
+      if (e instanceof HttpFehler && (e.status === 409 || e.status === 422)) throw new Konflikt(op);
+      throw e;
+    }
   } else {
     // Anhängen an den Stand, der GERADE auf GitHub liegt — nicht an den eigenen Cache.
     // Hat der Mac inzwischen etwas angehängt, bleibt es so erhalten.
@@ -100,38 +126,83 @@ async function senden(op) {
       if (!j) throw new HttpFehler(404, `${op.pfad} gibt es auf GitHub nicht`);
       const text = dateiText(j).replace(/\s*$/, '') + op.text;
       try {
-        const r = await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:zuB64(text), sha:j.sha, branch:k.branch } });
-        cache[op.pfad] = { sha:r.content.sha, text }; break;
+        const n = await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:zuB64(text), sha:j.sha, branch:k.branch } });
+        cache[op.pfad] = { sha:n.content.sha, text };
+        r = { vor:j.sha === bekannt ? bekannt : undefined, nach:n.content.sha }; break;
       } catch (e) { if (!(e instanceof HttpFehler && e.status === 409 && versuch < 2)) throw e; }
     }
   }
   merke(K_CACHE, cache);
+  return r;
 }
 
-// Netzfehler (fetch wirft TypeError) → Warteschlange. HTTP-Fehler → echter Fehler, den der Hub anzeigt.
-async function schreiben(op) {
-  try { await senden(op); }
-  catch (e) {
-    if (e instanceof HttpFehler) throw e;
-    merke(K_WARTE, [...(lies(K_WARTE) || []), op]);
+// Nicht übernommene Fassungen bleiben auf dem Handy liegen (nichts geht still verloren)
+// und stehen oben in der Leiste, bis man darauf tippt.
+const nichtUebernommen = op => merke(K_NICHT, [...(lies(K_NICHT) || []), { id:op.id, pfad:op.pfad, text:op.text, zeit:Date.now() }]);
+
+// Eine neue Fassung enthält alles, was für diese Datei schon wartet: Sie ersetzt es, statt
+// sich dahinter zu stellen. Ausnahme: eine noch nicht abgeschickte neue Datei bekommt einfach
+// den neuen Text. Was gerade unterwegs ist, wird nie angefasst.
+let imFlug = null;
+function einreihen(op) {
+  let w = lies(K_WARTE) || [];
+  if (op.art === 'ersetzen') {
+    const neu = w.find(o => o.pfad === op.pfad && o.art === 'neu' && o.id !== imFlug);
+    if (neu) { neu.text = op.text; return merke(K_WARTE, w); }
+    w = w.filter(o => o.pfad !== op.pfad || o.id === imFlug);
   }
-  zusammensetzen(); status(); neuStarten();
+  merke(K_WARTE, [...w, op]);
 }
 
-let sendetGerade = false;
-async function warteschlangeAbarbeiten() {
-  if (sendetGerade) return; sendetGerade = true;
+let kette = Promise.resolve();
+const warteschlangeAbarbeiten = () => (kette = kette.then(abarbeiten, abarbeiten));
+async function abarbeiten() {
+  // Einträge aus der Fassung vor dem 09.10. haben noch keine id.
+  const alt = lies(K_WARTE) || [];
+  if (alt.some(o => !o.id)) merke(K_WARTE, alt.map((o, i) => o.id ? o : { ...o, id:`alt-${Date.now()}-${i}` }));
   try {
-    let liste = lies(K_WARTE) || [];
-    while (liste.length) {
-      try { await senden(liste[0]); }
+    for (;;) {
+      const op = (lies(K_WARTE) || [])[0];
+      if (!op) break;
+      imFlug = op.id;
+      let r;
+      try { r = await senden(op); }
       catch (e) {
-        if (!(e instanceof HttpFehler)) break;                 // immer noch kein Netz
-        liste[0].fehler = e.message; merke(K_WARTE, liste); break;
+        if (e instanceof Konflikt) nichtUebernommen(op);        // raus aus der Schlange, aber aufgehoben
+        else if (!(e instanceof HttpFehler)) break;             // kein Netz: beim nächsten Mal
+        else {                                                  // echter Fehler: bleibt stehen und hängt
+          merke(K_WARTE, (lies(K_WARTE) || []).map(o => o.id === op.id ? { ...o, fehler:e.message, status:e.status } : o));
+          break;
+        }
       }
-      liste = liste.slice(1); merke(K_WARTE, liste);
+      // Was danach für dieselbe Datei wartet, beruht auf dieser eigenen Änderung: sha nachziehen.
+      const rest = (lies(K_WARTE) || []).filter(o => o.id !== op.id);
+      if (r && r.vor !== undefined) rest.forEach(o => { if (o.pfad === op.pfad && o.art === 'ersetzen' && (o.sha ?? null) === r.vor) o.sha = r.nach; });
+      merke(K_WARTE, rest);
     }
-  } finally { sendetGerade = false; zusammensetzen(); status(); }
+  } finally { imFlug = null; zusammensetzen(); status(); }
+}
+
+// Ohne Netz bleibt der Eintrag wartend und gilt für den Hub als gespeichert (wie bisher).
+// Schlägt GitHub ihn ab, bekommt der Hub den Fehler zu sehen.
+async function schreiben(op) {
+  op.id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  einreihen(op); zusammensetzen(); status();
+  await warteschlangeAbarbeiten();
+  const nicht = (lies(K_NICHT) || []).find(n => n.id === op.id);
+  if (nicht) {
+    // Der Hub hat einen veralteten Stand im Kopf. Neu laden und neu aufbauen, sonst
+    // überschriebe der nächste Klick die fremde Änderung mit dem alten Stand.
+    laden().then(() => hubStarten());
+    throw new Konflikt(op);
+  }
+  const haengt = (lies(K_WARTE) || []).find(o => o.id === op.id && o.fehler);
+  if (haengt) {
+    // Ein Fehler beim eigenen Klick geht zurück an den Hub, statt die Schlange zu blockieren.
+    merke(K_WARTE, (lies(K_WARTE) || []).filter(o => o.id !== op.id)); status();
+    throw new HttpFehler(haengt.status, haengt.fehler);
+  }
+  neuStarten();
 }
 
 // ── Obsidian nachbilden ─────────────────────────────────────────
@@ -200,11 +271,13 @@ function shim(root) {
         if (dateien[p]) throw new Error(`${p} gibt es schon`);
         await schreiben({ art:'neu', pfad:p, text }); return datei(p);
       },
-      // Am Handy wird nur angehängt — genau das tun die Schreibwege des Hubs (Cardio, Wiegen).
+      // Beginnt der neue Text mit dem alten, wird nur angehängt (Cardio, Wiegen): Das verträgt
+      // sich mit allem, was der Mac inzwischen angehängt hat. Sonst Umschreiben mit Prüfung.
       modify: async (f, text) => {
         const basis = (dateien[f.path]?.text ?? '').replace(/\s*$/, '');
-        if (!text.startsWith(basis)) throw new Error('Am Handy wird nur angehängt, nichts umgeschrieben.');
-        await schreiben({ art:'anhang', pfad:f.path, text:text.slice(basis.length) });
+        if (text.replace(/\s*$/, '') === basis) return;            // nichts geändert, nichts senden
+        if (text.startsWith(basis)) return schreiben({ art:'anhang', pfad:f.path, text:text.slice(basis.length) });
+        await schreiben({ art:'ersetzen', pfad:f.path, text, sha:(lies(K_CACHE) || {})[f.path]?.sha ?? null });
       },
       adapter: { getFullPath: p => p },
     },
@@ -318,15 +391,22 @@ hubEl.addEventListener('click', e => {
 const statusEl = document.getElementById('status');
 let offline = false;
 function status() {
-  const w = lies(K_WARTE) || [], fehler = w.find(o => o.fehler);
+  const w = lies(K_WARTE) || [], fehler = w.find(o => o.fehler), nicht = lies(K_NICHT) || [];
   const stand = lies(K_STAND);
-  const text = fehler ? `Eintrag hängt: ${fehler.fehler}`
+  const text = nicht.length ? `Nicht übernommen: ${[...new Set(nicht.map(n => n.pfad.split('/').pop().replace(/\.md$/, '')))].join(', ')} — am Mac geändert. Tippen zum Ausblenden.`
+    : fehler ? `Eintrag hängt: ${fehler.fehler}`
     : w.length ? `${w.length} ${w.length === 1 ? 'Eintrag wartet' : 'Einträge warten'} auf Netz`
     : offline ? `Offline · Stand ${stand ? new Date(stand).toLocaleString('de-DE', { weekday:'short', hour:'2-digit', minute:'2-digit' }) : 'unbekannt'}`
     : '';
   statusEl.textContent = text;
-  statusEl.className = text ? 'an' + (fehler ? ' fehler' : '') : '';
+  statusEl.className = text ? 'an' + (fehler || nicht.length ? ' fehler' : '') : '';
 }
+// Ausblenden heißt nicht löschen: Die Fassungen bleiben unter tr-nicht-alt liegen.
+statusEl.addEventListener('click', () => {
+  const nicht = lies(K_NICHT) || []; if (!nicht.length) return;
+  merke(K_NICHT + '-alt', [...(lies(K_NICHT + '-alt') || []), ...nicht].slice(-20));
+  localStorage.removeItem(K_NICHT); status();
+});
 
 // ── Einrichten: einmal den Schlüssel eintragen ──────────────────
 function einrichten(meldung = '') {

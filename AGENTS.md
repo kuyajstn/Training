@@ -19,8 +19,12 @@ Hub benutzt (`dv.pages/page/current/el`, `app.vault.*`, `require('fs')`). `mobil
   nachgebildet ist. Prüfen mit `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)"` auf den Hub.
 - **Das Rad (Wdh × kg) gehört nur der App** (`radOeffnen` in `app.js`): Es füllt die Felder `.tr-satz .g-w/.g-g`, die der
   Hub zeichnet. Benennt der Hub diese Klassen um, findet das Rad nichts mehr.
-- **Am Handy wird nur angelegt und angehängt**, nie umgeschrieben. `modify` wirft, wenn der neue Text
-  nicht mit dem alten beginnt. Den aktiven Plan stellt nur der Mac um.
+- **Schreiben läuft immer über die Warteschlange, streng nacheinander** (`schreiben` → `einreihen` → `abarbeiten`).
+  `modify` hängt an, wenn der neue Text mit dem alten beginnt, sonst schreibt es um (`art:'ersetzen'`) — mit dem
+  sha, auf dem die Änderung beruht. Lehnt GitHub ab (409/422), wird nichts überschrieben: Die Fassung landet unter
+  `tr-nicht` und steht oben in der Leiste. `processFrontMatter` wirft weiterhin, den aktiven Plan stellt nur der Mac um.
+  **Schreiblogik geändert? Danach `node werkzeug/schreibtest.mjs`** (schnelle Haken, Funkloch, Mac hat inzwischen
+  geändert, Anhängen, alte Einträge ohne id, echter Fehler). Läuft gegen ein nachgebautes GitHub, ohne Netz.
 - **Prüfen ohne echte Daten:** `node werkzeug/testserver.mjs` liest aus dem Vault, Schreiben ist gesperrt.
   Schreibtests nur gegen eine Kopie: `SCHREIBEN=1 VAULT=/tmp/vault-kopie node werkzeug/testserver.mjs`,
   Funkloch dazu mit `OHNE_NETZ=1`. Bildschirmfoto in iPhone-Breite: `werkzeug/rahmen.html`
@@ -42,6 +46,7 @@ Viermal so groß wie der Training Hub (324 KB) und mit Schreibwegen, die die App
 Umschreiben statt Anhängen (5×, z. B. `Zutaten Check`, `Einkaufsliste`, `Reste Ablage`), `trash`/`trashFile`,
 `metadataCache.getFileCache` (Überschriften von `Vorrat.md`), `getResourcePath` (Bilder), `executeCommandById`.
 Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "MindOS/02 Life OS/Ernährung/Kitchen Hub.md" | sort | uniq -c`.
-Offene Bauentscheidung: Umschreiben am Handy nur mit SHA-Prüfung (GitHub lehnt ab, wenn die Datei sich
-inzwischen geändert hat) und ohne Warteschlange — oder diese Schreibwege am Handy weglassen.
+Entschieden (Justin, 09.10.): **Umschreiben mit sha-Prüfung, auch aus der Warteschlange.** In `app.js` gebaut,
+dazu der Spielstand jede Minute und eine Ansage, wenn das Zusammenführen scheitert. Noch offen für die Küche:
+`processFrontMatter`, `trash`/`trashFile`, `getFileCache`, `getResourcePath` nachbilden.
 Entschieden (Justin, 09.10.): **Am Handy je Hub eine eigene App** mit eigenem Symbol, kein Umschalter. Der Nachbau von Obsidian (`shim()`) wird trotzdem geteilt, nicht kopiert.
