@@ -14,7 +14,7 @@
 //   Warum so: MindOS/05 Stack/Context/Decisions/Training-App am Handy führt den Hub-Code aus.md
 // ═══════════════════════════════════════════════════════════════
 
-// Ohne Angabe die Training-App: So läuft auch eine alte, noch zwischengespeicherte index.html weiter.
+// Jede App setzt window.HUB_APP in ihrer index.html (training/, kitchen/). Ohne Angabe die Training-App.
 const APP = window.HUB_APP || {
   name:'Training', hub:'02 Life OS/Training Hub.md', praefix:'tr', rad:true,
   dateien:['02 Life OS/Körperdaten.md', '99 System/Utility/Templates/Training Log.md', '99 System/Utility/Views/Koerper/koerper.json'],

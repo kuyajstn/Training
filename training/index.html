@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Training">
+<title>Training</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png?v=2">
+<link rel="stylesheet" href="../basis.css">
+<link rel="stylesheet" href="mobil.css">
+</head>
+<body>
+<div id="status"></div>
+<main id="hub"></main>
+<section id="einrichten" hidden>
+  <div class="ein-karte">
+    <span class="ein-av"><svg viewBox="0 0 24 24"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg></span>
+    <h1>Training</h1>
+    <form id="ein-form" autocomplete="off">
+      <label>GitHub-Schlüssel<input name="token" type="password" placeholder="github_pat_…" required></label>
+      <label>Repo<input name="repo" type="text" autocapitalize="off" spellcheck="false"></label>
+      <p id="ein-meldung"></p>
+      <button type="submit">Verbinden</button>
+    </form>
+    <small>Der Schlüssel bleibt nur auf diesem Gerät.</small>
+  </div>
+</section>
+<script>
+// Welcher Hub, welche Dateien. Der Code der App (../app.js) ist derselbe wie bei der Küche.
+window.HUB_APP = {
+  name:'Training', praefix:'tr', rad:true, sw:'../sw.js',
+  hub:'02 Life OS/Training Hub.md',
+  dateien:['02 Life OS/Körperdaten.md', '99 System/Utility/Templates/Training Log.md', '99 System/Utility/Views/Koerper/koerper.json'],
+  ordner:['02 Life OS/Training Logs'],
+};
+</script>
+<script src="../vendor/moment.min.js"></script>
+<script src="../app.js"></script>
+</body>
+</html>

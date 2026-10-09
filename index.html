@@ -4,33 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0c0f">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Training">
-<title>Training</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-180.png?v=2">
+<title>MindOS Apps</title>
 <link rel="stylesheet" href="basis.css">
-<link rel="stylesheet" href="mobil.css">
+<style>
+  /* Übersicht: Von hier aus jede App öffnen und dann „Zum Home-Bildschirm“. */
+  .ue { min-height:100dvh; display:flex; flex-direction:column; justify-content:center; gap:14px; padding:24px; box-sizing:border-box; max-width:420px; margin:0 auto; }
+  .ue h1 { margin:0 0 6px; font:700 28px ui-rounded,-apple-system,sans-serif; }
+  .ue p { margin:0 0 10px; color:#8a8a96; font-size:14px; }
+  .ue a { display:flex; align-items:center; gap:14px; padding:14px; border-radius:18px; background:#141418; border:1px solid rgba(255,255,255,.08); color:#f2f2f5; text-decoration:none; font:600 17px -apple-system,sans-serif; }
+  .ue img { width:52px; height:52px; border-radius:13px; }
+</style>
 </head>
 <body>
-<div id="status"></div>
-<main id="hub"></main>
-<section id="einrichten" hidden>
-  <div class="ein-karte">
-    <span class="ein-av"><svg viewBox="0 0 24 24"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg></span>
-    <h1>Training</h1>
-    <form id="ein-form" autocomplete="off">
-      <label>GitHub-Schlüssel<input name="token" type="password" placeholder="github_pat_…" required></label>
-      <label>Repo<input name="repo" type="text" autocapitalize="off" spellcheck="false"></label>
-      <p id="ein-meldung"></p>
-      <button type="submit">Verbinden</button>
-    </form>
-    <small>Der Schlüssel bleibt nur auf diesem Gerät.</small>
-  </div>
-</section>
-<script src="vendor/moment.min.js"></script>
-<script src="app.js"></script>
+<main class="ue">
+  <h1>MindOS Apps</h1>
+  <p>App öffnen, dann in Safari „Teilen“ → „Zum Home-Bildschirm“.</p>
+  <a href="training/"><img src="training/icon-180.png?v=2" alt="">Training</a>
+  <a href="kitchen/"><img src="kitchen/icon-180.png?v=1" alt="">Küche</a>
+</main>
 </body>
 </html>
