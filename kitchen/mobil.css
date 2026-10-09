@@ -41,6 +41,5 @@ html, body { background:#0A0908; }
 /* 16 px in Eingabefeldern, sonst zoomt das iPhone beim Antippen hinein. */
 #hub .kh input, #hub .kh select, #hub .kh textarea { font-size:16px !important; }
 
-/* „Beschreiben“ übergibt an Claudian in Obsidian, das gibt es am Handy nicht. */
-#hub .kh .kt-mode[data-modus="ki"] { display:none !important; }
-#hub .kh .kt-modes { grid-template-columns:repeat(3, minmax(0, 1fr)) !important; }
+/* „Beschreiben“ war bis 09.10. ausgeblendet (übergab nur an Claudian). Seit Stufe 3 legt es am
+   Handy den Eintrag ohne Werte an, ausgefüllt wird später (Kitchen Hub, kiBereich). */

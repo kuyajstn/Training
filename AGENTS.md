@@ -48,6 +48,12 @@ Der Schlüssel (`tr-konf`) gilt für beide, alles andere im Speicher trägt das 
 - **Laden beim Öffnen:** Ordner aus `ordner` und die Ordner der Einzeldateien werden aufgelistet (liefert den sha
   jeder Datei), geholt wird nur, was sich geändert hat. Über 1 MB liefert GitHub keinen Inhalt mit, dann roh nachgeholt.
   Die Küche lädt so auch den BLS (`99 System/Utility/Views/BLS/bls.json`, 481 KB) nur bei Änderung.
+- **Barcode lesen (seit 09.10.):** Der Kitchen Hub liest Barcodes aus Fotos mit `BarcodeDetector`. Safari am iPhone hat das nicht,
+  deshalb setzt `app.js` dort eine Klasse gleichen Namens, die beim ersten Foto `vendor/barcode-detector.js` (Ponyfill, MIT) und
+  `vendor/zxing_reader.wasm` (rund 1 MB) lädt. **Bewusst nicht in `HUELLE`**: Ohne Netz kann Open Food Facts das Produkt ohnehin nicht
+  nennen. **Die `.wasm` muss zur Version passen, die in der `.js` steht** (heute zxing-wasm 3.1.3): Beim Aktualisieren beide aus
+  `npm pack barcode-detector` bzw. `npm pack zxing-wasm@<Version>` holen. Prüfen ohne Handy: `werkzeug/barcode-testfoto.py`
+  zeichnet einen Strichcode als unscharfes, schräges „Foto“; im Testserver über `DataTransfer` ins Dateifeld `#ml-plan-scan` legen.
 - **Bilder** sucht die App im Frontmatter der geladenen Notizen (z. B. `banner:`), holt sie einmal und legt sie
   im Cache-Speicher des Browsers ab (nicht im localStorage, der hat nur wenige MB). Ein Bild, dessen Pfad nicht
   stimmt, fehlt am Handy genauso wie im Hub am Mac.

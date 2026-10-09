@@ -182,6 +182,13 @@ class Konflikt extends HttpFehler {
 async function senden(op) {
   const k = konf(), cache = lies(K_CACHE) || {}, bekannt = cache[op.pfad]?.sha ?? null;
   let r;
+  if (op.art === 'bild') {
+    // Foto vom Essen (Kitchen Hub, Stufe 3): schon als Base64 eingereiht, kommt nicht in den
+    // Text-Cache. Gibt es den Namen schon (422), wurde es bereits hochgeladen: nichts tun.
+    try { await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:op.b64, branch:k.branch } }); }
+    catch (e) { if (!(e instanceof HttpFehler && e.status === 422)) throw e; }
+    return { vor:undefined };
+  }
   if (op.art === 'neu') {
     const j = await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:zuB64(op.text), branch:k.branch } });
     cache[op.pfad] = { sha:j.content.sha, text:op.text }; r = { vor:null, nach:j.content.sha };
@@ -425,6 +432,17 @@ function shim(root) {
         if (dateien[p]) throw new Error(`${p} gibt es schon`);
         await schreiben({ art:'neu', pfad:p, text }); return datei(p);
       },
+      // Fotos (Kitchen Hub, Stufe 3): sofort im Bilder-Speicher, damit der Hub sie gleich zeigt,
+      // dann über die Warteschlange zu GitHub — vor dem Eintrag, der auf sie zeigt.
+      createBinary: async (p, puffer) => {
+        if (bilder[p]) throw new Error(`${p} gibt es schon`);
+        const blob = new Blob([puffer], { type: /\.png$/i.test(p) ? 'image/png' : 'image/jpeg' });
+        if ('caches' in window) await (await caches.open(`${APP.praefix}-bilder`)).put(`/bild/${pfadUrl(p)}`, new Response(blob));
+        bilder[p] = URL.createObjectURL(blob);
+        const by = new Uint8Array(puffer); let bin = '';
+        for (let i = 0; i < by.length; i += 0x8000) bin += String.fromCharCode(...by.subarray(i, i + 0x8000));
+        await schreiben({ art:'bild', pfad:p, b64:btoa(bin) }); return datei(p);
+      },
       // Beginnt der neue Text mit dem alten, wird nur angehängt (Cardio, Wiegen): Das verträgt
       // sich mit allem, was der Mac inzwischen angehängt hat. Sonst Umschreiben mit Prüfung.
       modify: async (f, text) => {
@@ -460,6 +478,8 @@ function shim(root) {
       },
     },
     commands: { executeCommandById: () => false },
+    // Wie Obsidian am Handy: Der Kitchen Hub bietet dann statt Claudian die Warteschlange an.
+    isMobile: true,
   };
   const require = name => {
     if (name !== 'fs') throw new Error(`Modul ${name} gibt es hier nicht`);
