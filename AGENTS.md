@@ -64,7 +64,7 @@ Umschreiben statt Anhängen (5×, z. B. `Zutaten Check`, `Einkaufsliste`, `Reste
 Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "MindOS/02 Life OS/Ernährung/Kitchen Hub.md" | sort | uniq -c`.
 Entschieden (Justin, 09.10.): **Umschreiben mit sha-Prüfung, auch aus der Warteschlange.** In `app.js` gebaut,
 dazu der Spielstand jede Minute und eine Ansage, wenn das Zusammenführen scheitert.
-**Gebaut und geprüft, noch nicht ausgerollt:** alle Stellen nachgebildet, Handy-Layout (Leiste unten, Kopf
+**Ausgerollt am 09.10.** (`https://kuyajstn.github.io/mindos-apps/kitchen/`): alle Stellen nachgebildet, Handy-Layout (Leiste unten, Kopf
 angeheftet, Dialog als Blatt), Symbol `kitchen/icon-*.png` (Quelle `werkzeug/icon-kitchen.html`, fotografiert mit
 headless Chrome: `--headless=new --window-size=512,512 --screenshot=…`, das geht auch unter 500 px). Mit dem echten
 Hub gegen eine Kopie geschrieben: anlegen, „gegessen“ umschalten, Favorit, entfernen.
