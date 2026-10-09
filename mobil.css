@@ -1,14 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   Handy-Layout über dem CSS des Training Hubs.
+   Handy-Layout über dem CSS des Training Hubs (die gemeinsame Hülle steht in basis.css).
    Der Hub bringt sein eigenes CSS mit (Farben, Karten, Animationen) — hier
    steht nur, was am Handy anders ist. #hub vorn, damit es gegen das CSS des
    Hubs gewinnt, das später im Dokument steht.
    ═══════════════════════════════════════════════════════════════ */
-:root { color-scheme:dark; --sa-o:env(safe-area-inset-top); --sa-u:env(safe-area-inset-bottom); }
-html, body { margin:0; background:#0c0c0f; color:#f2f2f5; -webkit-text-size-adjust:100%; }
-body { font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none; }
-* { -webkit-touch-callout:none; }
-
 /* Container-Abfragen des Hubs aus: Die Hülle wäre sonst Bezugsrahmen für alles Feste
    (Leiste unten, Dialog), und am Handy gilt das schmale Layout ohnehin immer. */
 #hub .tr-wrap { container-type:normal !important; }
@@ -112,30 +107,6 @@ body { font:15px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; -webkit-tap-h
 #hub .tr-knoepfe { position:sticky; bottom:calc(var(--sa-u) * -1 - 18px); background:var(--panel); padding:12px 0 2px; margin-top:12px; }
 #hub .tr-knoepfe > * { flex:1; justify-content:center; min-height:48px; }
 #hub .tr-wahl button { min-height:48px; font-size:15px; }
-
-/* ── Eigene Teile der App ──────────────────────────────────────── */
-#status { position:fixed; z-index:80; left:50%; top:calc(var(--sa-o) + 8px); transform:translateX(-50%);
-  font:600 12px/1 -apple-system,sans-serif; color:#a3a3ae; background:#1c1c22; border:1px solid rgba(255,255,255,.1);
-  border-radius:99px; padding:7px 12px; white-space:nowrap; display:none; }
-#status.an { display:block; }
-#status.fehler { color:#ffb4ab; background:#2a1114; border-color:#5a1f24; }
-.ta-fehler { margin:16px; padding:14px 16px; border-radius:14px; background:#2a1114; border:1px solid #5a1f24; color:#ffb4ab; font-size:14px; }
-
-#einrichten { min-height:100dvh; display:grid; place-items:center; padding:24px; box-sizing:border-box; }
-#einrichten[hidden] { display:none; }
-.ein-karte { width:100%; max-width:380px; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
-.ein-av { width:64px; height:64px; border-radius:18px; display:grid; place-items:center; background:linear-gradient(150deg,#ff5e3a,#c02318);
-  box-shadow:0 10px 30px -8px rgba(230,37,20,.7); }
-.ein-av svg { width:34px; height:34px; fill:none; stroke:#fff; stroke-width:2.2; stroke-linecap:round; }
-.ein-karte h1 { margin:0; font:700 28px ui-rounded,-apple-system,sans-serif; }
-#ein-form { width:100%; display:flex; flex-direction:column; gap:12px; text-align:left; }
-#ein-form label { display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:#6e6e7a; letter-spacing:.06em; text-transform:uppercase; }
-#ein-form input { font:16px -apple-system,sans-serif; color:#f2f2f5; background:#141418; border:1px solid rgba(255,255,255,.11);
-  border-radius:12px; padding:13px 14px; text-transform:none; letter-spacing:0; }
-#ein-form button { font:700 16px -apple-system,sans-serif; color:#fff; background:#e62514; border:0; border-radius:13px; padding:15px; margin-top:4px; }
-#ein-form button:disabled { opacity:.6; }
-#ein-meldung { margin:0; min-height:1em; font-size:13.5px; color:#ffb4ab; }
-.ein-karte small { color:#6e6e7a; font-size:12.5px; }
 
 /* ── Rad: Blatt über dem Eintragen-Dialog ─────────────────────────── */
 #rad { position:fixed; inset:0; z-index:95; background:rgba(0,0,0,.35); display:flex; align-items:flex-end; }

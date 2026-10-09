@@ -1,8 +1,11 @@
 // Hülle der App offline verfügbar halten. Netz zuerst, damit Änderungen sofort
 // ankommen; ohne Netz die zuletzt geladene Fassung. GitHub-Anfragen gehen nie hier durch.
-const V = 'training-v8';
-const HUELLE = ['./', './index.html', './app.js', './mobil.css', './vendor/moment.min.js',
-                './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
+const V = 'training-v9';
+// Eine Hülle für alle Apps: Training liegt oben, die Küche in kitchen/.
+const HUELLE = ['./', './index.html', './app.js', './basis.css', './mobil.css', './vendor/moment.min.js',
+                './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png',
+                './kitchen/', './kitchen/index.html', './kitchen/mobil.css', './kitchen/manifest.webmanifest',
+                './kitchen/icon-180.png', './kitchen/icon-192.png', './kitchen/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(HUELLE))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))));

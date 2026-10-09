@@ -1,27 +1,35 @@
 // ═══════════════════════════════════════════════════════════════
-//   TRAINING-APP fürs Handy
-//   Führt den ECHTEN Code des Training Hubs aus (MindOS/02 Life OS/Training Hub.md),
-//   geladen aus dem Vault-Repo auf GitHub. Diese Datei bildet nur die 14 Stellen
-//   nach, an denen der Hub Obsidian anspricht (dv.*, app.vault.*, require('fs')).
-//   Ändert sich der Hub, ändert sich die App beim nächsten Öffnen mit.
+//   HUB-APPS fürs Handy (Training, Küche)
+//   Führt den ECHTEN Code eines Hubs aus, geladen aus dem Vault-Repo auf GitHub.
+//   Diese Datei bildet nur die Stellen nach, an denen ein Hub Obsidian anspricht
+//   (dv.*, app.vault.*, require('fs') …). Ändert sich der Hub, ändert sich die App
+//   beim nächsten Öffnen mit. Welcher Hub, steht in window.HUB_APP der index.html.
 //
 //   Schreiben: neue Dateien (Gym-Logs) und Anhängen (Cardio, Körperdaten) direkt
 //   per GitHub-API. Seit 09.10. auch Umschreiben (für den Kitchen Hub), aber nur, wenn
 //   die Datei auf GitHub noch die ist, die die App geladen hat. Sonst wird nichts
 //   überschrieben, und der Eintrag steht als „nicht übernommen“ oben in der Leiste.
 //   Ohne Netz in eine Warteschlange, abgeschickt, sobald Netz da ist.
-//   Am Mac holt der automatische Spielstand die Einträge alle 10 Minuten herunter.
+//   Am Mac holt der automatische Spielstand die Einträge jede Minute herunter.
 //   Warum so: MindOS/05 Stack/Context/Decisions/Training-App am Handy führt den Hub-Code aus.md
 // ═══════════════════════════════════════════════════════════════
 
-const HUB     = '02 Life OS/Training Hub.md';
-const DATEIEN = [HUB, '02 Life OS/Körperdaten.md', '99 System/Utility/Templates/Training Log.md',
-                 '99 System/Utility/Views/Koerper/koerper.json'];
-const ORDNER  = ['02 Life OS/Training Logs'];
+// Ohne Angabe die Training-App: So läuft auch eine alte, noch zwischengespeicherte index.html weiter.
+const APP = window.HUB_APP || {
+  name:'Training', hub:'02 Life OS/Training Hub.md', praefix:'tr', rad:true,
+  dateien:['02 Life OS/Körperdaten.md', '99 System/Utility/Templates/Training Log.md', '99 System/Utility/Views/Koerper/koerper.json'],
+  ordner:['02 Life OS/Training Logs'],
+};
+const HUB     = APP.hub;
+const HUB_NAME = HUB.split('/').pop().replace(/\.md$/, '');
+const DATEIEN = [HUB, ...APP.dateien];
+const ORDNER  = APP.ordner;
 
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const API = DEV ? '/gh' : 'https://api.github.com';
-const K_KONF = 'tr-konf', K_CACHE = 'tr-cache', K_WARTE = 'tr-warte', K_STAND = 'tr-stand', K_NICHT = 'tr-nicht';
+// Der Schlüssel (tr-konf) gilt für alle Apps, der Rest ist je App getrennt.
+const K_KONF = 'tr-konf', K_CACHE = `${APP.praefix}-cache`, K_WARTE = `${APP.praefix}-warte`,
+      K_STAND = `${APP.praefix}-stand`, K_NICHT = `${APP.praefix}-nicht`;
 
 const lies  = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const merke = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -37,19 +45,24 @@ function zuB64(s) {
 }
 class HttpFehler extends Error { constructor(status, text) { super(text); this.status = status; } }
 
-async function gh(pfad, { methode = 'GET', body } = {}) {
+async function gh(pfad, { methode = 'GET', body, roh = false } = {}) {
   const k = konf();
   const url = `${API}/repos/${k.repo}/contents/${pfadUrl(pfad)}${methode === 'GET' ? `?ref=${encodeURIComponent(k.branch)}` : ''}`;
   const r = await fetch(url, {
     method: methode, cache: 'no-store',
-    headers: { 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28',
+    headers: { 'Accept':roh ? 'application/vnd.github.raw+json' : 'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28',
                ...(k.token ? { 'Authorization':`Bearer ${k.token}` } : {}),
                ...(body ? { 'Content-Type':'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (r.status === 404 && methode === 'GET') return null;
+  if (r.status === 404 && (methode === 'GET' || methode === 'DELETE')) return null;
   if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch {} throw new HttpFehler(r.status, m || r.statusText); }
-  return r.json();
+  return roh ? r.blob() : r.json();
+}
+// Höchstens n Abrufe gleichzeitig: Beim ersten Öffnen holt die Küche rund 180 Dateien.
+async function jeweils(liste, n, fn) {
+  const rest = [...liste];
+  await Promise.all(Array.from({ length:Math.min(n, rest.length) }, async () => { while (rest.length) await fn(rest.shift()); }));
 }
 const dateiText = j => j.encoding === 'base64' ? ausB64(j.content) : String(j.content ?? '');
 
@@ -64,23 +77,24 @@ function zusammensetzen() {
     if (op.art === 'neu' && !d[op.pfad]) d[op.pfad] = { sha:null, text:op.text };
     if (op.art === 'anhang' && d[op.pfad]) d[op.pfad].text = d[op.pfad].text.replace(/\s*$/, '') + op.text;
     if (op.art === 'ersetzen') d[op.pfad] = { sha:d[op.pfad]?.sha ?? null, text:op.text };
+    if (op.art === 'loeschen') delete d[op.pfad];
   }
   dateien = d;
 }
 
 async function aktualisieren() {
   const alt = lies(K_CACHE) || {}, neu = {};
-  await Promise.all(DATEIEN.map(async p => {
+  await jeweils(DATEIEN, 6, async p => {
     const j = await gh(p);
     if (j) neu[p] = { sha:j.sha, text:dateiText(j) };
-  }));
+  });
   for (const o of ORDNER) {
     const liste = await gh(o) || [];
-    await Promise.all(liste.filter(e => e.type === 'file' && e.name.endsWith('.md')).map(async e => {
+    await jeweils(liste.filter(e => e.type === 'file' && e.name.endsWith('.md')), 6, async e => {
       if (alt[e.path]?.sha === e.sha) { neu[e.path] = alt[e.path]; return; }
       const j = await gh(e.path);
       if (j) neu[e.path] = { sha:j.sha, text:dateiText(j) };
-    }));
+    });
   }
   const geaendert = JSON.stringify(Object.keys(neu).sort().map(p => [p, neu[p].sha]))
                  !== JSON.stringify(Object.keys(alt).sort().map(p => [p, alt[p].sha]));
@@ -88,11 +102,37 @@ async function aktualisieren() {
   return geaendert;
 }
 
+// ── Bilder ──────────────────────────────────────────────────────
+// Welche Bilder gebraucht werden, steht im Frontmatter der geladenen Notizen (z. B.
+// `banner:` der Rezepte). Einmal geholt, liegen sie im Cache-Speicher des Browsers, nicht im
+// localStorage (der ist auf wenige MB begrenzt). getResourcePath ist synchron, deshalb werden
+// sie vor dem Start des Hubs bereitgelegt.
+const BILD = /\.(jpe?g|png|webp|gif|avif)$/i;
+let bilder = {};
+async function bilderBereitlegen(holen) {
+  if (!('caches' in window)) return;
+  const pfade = new Set();
+  for (const d of Object.values(dateien)) {
+    const m = d.text.match(/^---\n([\s\S]*?)\n---/);
+    if (m) for (const z of m[1].matchAll(/^[^:\n]*:\s*["']?([^"'\n]+?\.(?:jpe?g|png|webp|gif|avif))["']?\s*$/gim)) pfade.add(z[1].trim());
+  }
+  const speicher = await caches.open(`${APP.praefix}-bilder`);
+  await jeweils([...pfade].filter(p => !bilder[p]), 4, async p => {
+    const schluessel = `/bild/${pfadUrl(p)}`;
+    let antwort = await speicher.match(schluessel);
+    if (!antwort && holen) {
+      try { const b = await gh(p, { roh:true }); if (b) { await speicher.put(schluessel, new Response(b)); antwort = await speicher.match(schluessel); } }
+      catch (e) { console.warn('Bild', p, e); }
+    }
+    if (antwort) bilder[p] = URL.createObjectURL(await antwort.blob());
+  });
+}
+
 // ── Schreiben ───────────────────────────────────────────────────
 // Jeder Schreibvorgang kommt erst in die Warteschlange, und die wird streng der Reihe nach
 // abgearbeitet. Sonst schickten zwei schnelle Haken bei langsamem Netz beide auf dem alten
 // Stand los, und GitHub hielte den zweiten für eine fremde Änderung.
-const nachricht = p => `Training-App: ${p.split('/').pop().replace(/\.md$/, '')}`;
+const nachricht = p => `${APP.commit || APP.name + '-App'}: ${p.split('/').pop().replace(/\.md$/, '')}`;
 const dateiName = p => p.split('/').pop().replace(/\.md$/, '');
 
 class Konflikt extends HttpFehler {
@@ -107,6 +147,15 @@ async function senden(op) {
   if (op.art === 'neu') {
     const j = await gh(op.pfad, { methode:'PUT', body:{ message:nachricht(op.pfad), content:zuB64(op.text), branch:k.branch } });
     cache[op.pfad] = { sha:j.content.sha, text:op.text }; r = { vor:null, nach:j.content.sha };
+  } else if (op.art === 'loeschen') {
+    // Wie Umschreiben: nur, wenn die Datei noch die ist, die die App kannte.
+    try {
+      await gh(op.pfad, { methode:'DELETE', body:{ message:nachricht(op.pfad) + ' (gelöscht)', sha:op.sha, branch:k.branch } });
+    } catch (e) {
+      if (e instanceof HttpFehler && (e.status === 409 || e.status === 422)) throw new Konflikt(op);
+      throw e;
+    }
+    delete cache[op.pfad]; r = { vor:undefined };
   } else if (op.art === 'ersetzen') {
     // Mit dem sha, auf dem die Änderung beruht: Hat sich die Datei auf GitHub inzwischen
     // geändert, lehnt GitHub ab (409, ohne sha bei vorhandener Datei 422), nichts wird überschrieben.
@@ -146,6 +195,12 @@ const nichtUebernommen = op => merke(K_NICHT, [...(lies(K_NICHT) || []), { id:op
 let imFlug = null;
 function einreihen(op) {
   let w = lies(K_WARTE) || [];
+  if (op.art === 'loeschen') {
+    // Nie abgeschickt? Dann war die Datei auf GitHub nie da: beides fällt weg.
+    const neu = w.find(o => o.pfad === op.pfad && o.art === 'neu' && o.id !== imFlug);
+    w = w.filter(o => o.pfad !== op.pfad || o.id === imFlug);
+    return merke(K_WARTE, neu ? w : [...w, op]);
+  }
   if (op.art === 'ersetzen') {
     const neu = w.find(o => o.pfad === op.pfad && o.art === 'neu' && o.id !== imFlug);
     if (neu) { neu.text = op.text; return merke(K_WARTE, w); }
@@ -228,19 +283,67 @@ function frontmatter(text) {
   return { fm:o, body:text.slice(m[0].length) };
 }
 // Listeneinträge wie Dataviews file.lists — ohne Code-Blöcke und HTML-Kommentare.
-function listen(body) {
+// `position.start.line` zählt wie Obsidian ab Dateianfang (der Kitchen Hub grenzt damit
+// den Grundstock in Vorrat.md unter seiner Überschrift ab).
+function listen(body, ab = 0) {
   const out = []; let code = false, kommentar = false;
-  for (const z of body.split('\n')) {
+  for (const [i, z] of body.split('\n').entries()) {
     if (/^\s*```/.test(z)) { code = !code; continue; }
     if (code) continue;
     if (kommentar) { if (z.includes('-->')) kommentar = false; continue; }
     if (z.includes('<!--') && !z.includes('-->')) { kommentar = true; continue; }
     const m = z.match(/^\s*[-*+]\s+(?:\[.\]\s+)?(.*)$/);
-    if (m) out.push({ text:m[1].trim() });
+    if (m) out.push({ text:m[1].trim(), position:{ start:{ line:ab + i } } });
   }
   return out;
 }
+// Überschriften wie metadataCache.getFileCache(f).headings.
+function ueberschriften(text) {
+  const out = []; let code = false;
+  text.split('\n').forEach((z, i) => {
+    if (/^\s*```/.test(z)) { code = !code; return; }
+    const m = !code && z.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+    if (m) out.push({ heading:m[2], level:m[1].length, position:{ start:{ line:i } } });
+  });
+  return out;
+}
+// Ein Feld im Frontmatter setzen oder entfernen, Zeile für Zeile: Der Rest der Datei bleibt
+// Byte für Byte, wie er war. Neu serialisieren hieße Format-Drift (Anführungszeichen,
+// Listenform), und Drift scheitert in den Hubs still.
+function yamlWert(v) {
+  if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+  if (v == null) return '';
+  const t = String(v);
+  return /^[\w\-. äöüÄÖÜß]*$/.test(t) && !/^(true|false|null|-?\d+(\.\d+)?)$/.test(t) && t.trim() === t ? t : JSON.stringify(t);
+}
+function frontmatterAendern(text, fn) {
+  let m = text.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!m) { text = `---\n---\n${text}`; m = text.match(/^---\n([\s\S]*?)\n?---\n?/); }
+  const vorher = frontmatter(text).fm, nachher = JSON.parse(JSON.stringify(vorher));
+  fn(nachher);
+  let zeilen = m[1] ? m[1].split('\n') : [];
+  const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const stelle = k => zeilen.findIndex(z => new RegExp(`^${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`).test(z));
+  const ende = i => { let j = i + 1; while (j < zeilen.length && /^\s+-\s|^\s+\S/.test(zeilen[j])) j++; return j; };
+  for (const k of new Set([...Object.keys(vorher), ...Object.keys(nachher)])) {
+    if (gleich(vorher[k], nachher[k])) continue;
+    if (Array.isArray(nachher[k]) || (nachher[k] && typeof nachher[k] === 'object'))
+      throw new Error(`Listen im Frontmatter (${k}) am Mac ändern`);
+    const i = stelle(k);
+    if (!(k in nachher)) { if (i >= 0) zeilen.splice(i, ende(i) - i); continue; }
+    const z = `${k}: ${yamlWert(nachher[k])}`;
+    if (i >= 0) zeilen.splice(i, ende(i) - i, z); else zeilen.push(z);
+  }
+  return `---\n${zeilen.join('\n')}${zeilen.length ? '\n' : ''}---\n` + text.slice(m[0].length);
+}
+// Wie Dataviews DataArray, soweit die Hubs es benutzen: where · sort(schlüssel, 'asc'|'desc') · array.
 const datenArray = arr => ({ where:f => datenArray(arr.filter(f)), array:() => arr.slice(),
+  sort:(key = x => x, dir = 'asc') => {
+    const v = dir === 'desc' ? -1 : 1;
+    return datenArray(arr.slice().sort((a, b) => { const x = key(a), y = key(b);
+      return x == null && y == null ? 0 : x == null ? 1 : y == null ? -1 : x < y ? -v : x > y ? v : 0; }));
+  },
+  map:f => datenArray(arr.map(f)), filter:f => datenArray(arr.filter(f)), forEach:f => arr.forEach(f),
   values:arr, length:arr.length, [Symbol.iterator]:() => arr[Symbol.iterator]() });
 
 function shim(root) {
@@ -249,12 +352,18 @@ function shim(root) {
     if (!dateien[p] || !p.endsWith('.md')) return null;
     if (!seiten[p]) {
       const { fm, body } = frontmatter(dateien[p].text);
+      const ab = dateien[p].text.slice(0, dateien[p].text.length - body.length).split('\n').length - 1;
       seiten[p] = { ...fm, file:{ path:p, name:p.split('/').pop().replace(/\.md$/, ''),
-        folder:p.split('/').slice(0, -1).join('/'), lists:datenArray(listen(body)) } };   // wie Dataview: .values ist das Array
+        folder:p.split('/').slice(0, -1).join('/'), lists:datenArray(listen(body, ab)) } };   // wie Dataview: .values ist das Array
     }
     return seiten[p];
   };
-  const datei = p => dateien[p] ? { path:p, name:p.split('/').pop(), basename:p.split('/').pop().replace(/\.md$/, ''), extension:'md' } : null;
+  const datei = p => (dateien[p] || bilder[p]) ? { path:p, name:p.split('/').pop(),
+    basename:p.split('/').pop().replace(/\.[^.]+$/, ''), extension:p.split('.').pop() } : null;
+  const loeschen = async f => {
+    if (!dateien[f.path]) return;
+    await schreiben({ art:'loeschen', pfad:f.path, sha:(lies(K_CACHE) || {})[f.path]?.sha ?? null });
+  };
   const dv = {
     pages: src => { const o = String(src).replace(/^"|"$/g, '');
       return datenArray(Object.keys(dateien).filter(p => p.endsWith('.md') && p.startsWith(o + '/')).sort().map(seite)); },
@@ -279,11 +388,25 @@ function shim(root) {
         if (text.startsWith(basis)) return schreiben({ art:'anhang', pfad:f.path, text:text.slice(basis.length) });
         await schreiben({ art:'ersetzen', pfad:f.path, text, sha:(lies(K_CACHE) || {})[f.path]?.sha ?? null });
       },
+      // Papierkorb: Auf GitHub gelöscht ist zurückholbar (die Geschichte bleibt), wie Obsidians .trash.
+      trash: loeschen, delete: loeschen,
+      getResourcePath: f => bilder[f.path] || '',
       adapter: { getFullPath: p => p },
     },
-    // Den aktiven Plan stellt nur der Mac um: Er steht im Frontmatter des Hubs selbst.
-    fileManager: { processFrontMatter: async () => { throw new Error('Plan am Mac umstellen'); } },
+    fileManager: {
+      // Den aktiven Plan stellt nur der Mac um: Er steht im Frontmatter des Hubs selbst.
+      processFrontMatter: async (f, fn) => {
+        if (f.path === HUB) throw new Error('Plan am Mac umstellen');
+        await app.vault.modify(f, frontmatterAendern(dateien[f.path]?.text ?? '', fn));
+      },
+      trashFile: loeschen,
+    },
+    metadataCache: {
+      getFileCache: f => dateien[f?.path] ? { headings:ueberschriften(dateien[f.path].text), frontmatter:frontmatter(dateien[f.path].text).fm } : null,
+    },
+    // Am Handy gibt es kein Obsidian, das Notizen öffnen oder Befehle ausführen könnte.
     workspace: { getLeaf: () => ({ openFile: () => {} }), openLinkText: () => {} },
+    commands: { executeCommandById: () => false },
   };
   const require = name => {
     if (name !== 'fs') throw new Error(`Modul ${name} gibt es hier nicht`);
@@ -302,13 +425,13 @@ async function hubStarten() {
   laeuft = true;
   try {
     const code = (dateien[HUB]?.text.match(/^```dataviewjs[^\n]*\n([\s\S]*?)^```\s*$/m) || [])[1];
-    if (!code) { hubEl.innerHTML = '<div class="ta-fehler">Training Hub nicht gefunden.</div>'; return; }
+    if (!code) { hubEl.innerHTML = `<div class="ta-fehler">${HUB_NAME} nicht gefunden.</div>`; return; }
     const root = document.createElement('div');
     hubEl.replaceChildren(root);
     const { dv, app, require } = shim(root);
     try { await new AsyncFunction('dv', 'app', 'require', code)(dv, app, require); }
     catch (e) { console.error(e); root.insertAdjacentHTML('beforeend', `<div class="ta-fehler">Der Hub-Code ist abgestürzt: ${String(e.message || e).replace(/</g, '&lt;')}</div>`); }
-    zahlenfelder(root);
+    if (APP.rad) zahlenfelder(root);
   } finally {
     laeuft = false;
     if (nochmal) { nochmal = false; hubStarten(); }
@@ -401,7 +524,7 @@ function status() {
   statusEl.textContent = text;
   statusEl.className = text ? 'an' + (fehler || nicht.length ? ' fehler' : '') : '';
 }
-// Ausblenden heißt nicht löschen: Die Fassungen bleiben unter tr-nicht-alt liegen.
+// Ausblenden heißt nicht löschen: Die Fassungen bleiben unter <praefix>-nicht-alt liegen.
 statusEl.addEventListener('click', () => {
   const nicht = lies(K_NICHT) || []; if (!nicht.length) return;
   merke(K_NICHT + '-alt', [...(lies(K_NICHT + '-alt') || []), ...nicht].slice(-20));
@@ -422,7 +545,7 @@ function einrichten(meldung = '') {
     const knopf = f.querySelector('button'); knopf.disabled = true; knopf.textContent = 'Prüfe …';
     merke(K_KONF, neu);
     try {
-      if (!await gh(HUB)) throw new Error('Training Hub im Repo nicht gefunden');
+      if (!await gh(HUB)) throw new Error(`${HUB_NAME} im Repo nicht gefunden`);
       document.getElementById('einrichten').hidden = true; hubEl.hidden = false;
       await start();
     } catch (err) {
@@ -441,7 +564,9 @@ async function laden() {
     const geaendert = await aktualisieren();
     await warteschlangeAbarbeiten();
     zusammensetzen();
-    return geaendert;
+    const n = Object.keys(bilder).length;
+    await bilderBereitlegen(true);
+    return geaendert || Object.keys(bilder).length !== n;
   } catch (e) {
     if (e instanceof HttpFehler && e.status === 401) { einrichten('Der Schlüssel ist abgelaufen oder wurde zurückgezogen.'); return false; }
     offline = true; console.warn(e); return false;
@@ -450,6 +575,7 @@ async function laden() {
 
 async function start() {
   zusammensetzen();
+  await bilderBereitlegen(false).catch(() => {});
   if (dateien[HUB]) hubStarten();             // sofort aus dem Cache, auch ohne Netz
   if (await laden() || !hubEl.firstChild) hubStarten();
   if (DEV) testKlick();
@@ -479,5 +605,5 @@ document.addEventListener('visibilitychange', () => {
   laden().then(g => { if (g || tagGestartet !== tagHeute()) { tagGestartet = tagHeute(); hubStarten(); } });
 });
 
-if (!DEV && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+if (!DEV && 'serviceWorker' in navigator) navigator.serviceWorker.register(APP.sw || './sw.js');
 if (konf()) start(); else einrichten();

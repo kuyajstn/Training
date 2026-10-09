@@ -1,0 +1,5 @@
+/* ═══════════════════════════════════════════════════════════════
+   Handy-Layout über dem CSS des Kitchen Hubs (die gemeinsame Hülle steht in ../basis.css).
+   Der Hub bringt sein eigenes CSS mit — hier steht nur, was am Handy anders ist.
+   ═══════════════════════════════════════════════════════════════ */
+html, body { background:#0A0908; }

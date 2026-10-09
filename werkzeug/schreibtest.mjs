@@ -20,6 +20,11 @@ async function fetch(url, o = {}) {
   }
   if (globalThis.verbot) return antw(403, { message:'kein Recht' });
   const b = JSON.parse(o.body); puts++;
+  if (o.method === 'DELETE') {
+    if (!gh[p]) return antw(404, {});
+    if (b.sha !== gh[p].sha) return antw(409, { message:'sha passt nicht' });
+    delete gh[p]; return antw(200, {});
+  }
   if (gh[p] && !b.sha) return antw(422, { message:'sha fehlt' });
   if (gh[p] && b.sha !== gh[p].sha) return antw(409, { message:'sha passt nicht' });
   setze(p, Buffer.from(b.content, 'base64').toString('utf8'));
@@ -102,4 +107,51 @@ try { await app2.vault.modify(f2, A.dateien[ZC].text.replace('Eier :: fehlt', 'E
 globalThis.verbot = false;
 ok(f8 && f8.status === 403, '8 echter Fehler geht an den Hub');
 ok(!A.lies(A.K_WARTE).length, '8 und blockiert die Schlange nicht');
+// 9 Eigenschaft setzen: nur die eine Zeile ändert sich
+const R = '02 Life OS/Ernährung/Meal Library/Skyr.md', DN = '02 Life OS/Daily Journal/2026-10-09.md';
+setze(R, '---\ndomain: body\ntype: recipe\nfavorite: false\nrecipe: "Skyr, Beeren"\ntags:\n  - a\n  - b\nbanner: x.jpg\n---\n# Skyr\n');
+setze(DN, '---\ntype: journal\nsport: true\n---\nText\n');
+await A.laden(); await holen(); { const c = A.lies(A.K_CACHE); c[R] = { ...gh[R] }; c[DN] = { ...gh[DN] }; A.merke(A.K_CACHE, c); A.zusammensetzen(); }
+const { app: app3 } = A.shim(el());
+await app3.fileManager.processFrontMatter(app3.vault.getAbstractFileByPath(R), fm => { fm.favorite = true; });
+ok(gh[R].text === '---\ndomain: body\ntype: recipe\nfavorite: true\nrecipe: "Skyr, Beeren"\ntags:\n  - a\n  - b\nbanner: x.jpg\n---\n# Skyr\n', '9 Favorit: nur diese Zeile geändert, Rest Byte für Byte gleich');
+// 10 Pausetag an der Daily Note setzen und wieder weg
+const { app: app4 } = A.shim(el());
+await app4.fileManager.processFrontMatter(app4.vault.getAbstractFileByPath(DN), fm => { fm.pause = true; });
+ok(gh[DN].text === '---\ntype: journal\nsport: true\npause: true\n---\nText\n', '10 Pausetag gesetzt (unten angefügt)');
+const { app: app5 } = A.shim(el());
+await app5.fileManager.processFrontMatter(app5.vault.getAbstractFileByPath(DN), fm => { delete fm.pause; });
+ok(gh[DN].text === '---\ntype: journal\nsport: true\n---\nText\n', '10 Pausetag entfernt, Datei wie vorher');
+let f10 = null; try { await app5.fileManager.processFrontMatter(app5.vault.getAbstractFileByPath(R), fm => { fm.tags = ['a']; }); } catch (e) { f10 = e; }
+ok(f10 && /am Mac/.test(f10.message), '10 Listen im Frontmatter werden verweigert statt verbogen');
+// 11 Löschen: online, mit Konflikt, offline angelegt und gelöscht
+const MP = '02 Life OS/Ernährung/Meal Plan/2026-10-09 Skyr.md';
+setze(MP, '---\ntype: mealplan\ndone: false\n---\n');
+{ const c = A.lies(A.K_CACHE); c[MP] = { ...gh[MP] }; A.merke(A.K_CACHE, c); A.zusammensetzen(); }
+const { app: app6 } = A.shim(el());
+await app6.vault.trash(app6.vault.getAbstractFileByPath(MP), true);
+ok(!gh[MP] && !A.dateien[MP], '11 Löschen kommt an und ist sofort weg');
+setze(MP, '---\ntype: mealplan\ndone: false\n---\n');
+{ const c = A.lies(A.K_CACHE); c[MP] = { ...gh[MP] }; A.merke(A.K_CACHE, c); A.zusammensetzen(); }
+macSchreibt(MP, '---\ntype: mealplan\ndone: true\n---\n');
+let f11 = null; const { app: app7 } = A.shim(el());
+try { await app7.fileManager.trashFile(app7.vault.getAbstractFileByPath(MP)); } catch (e) { f11 = e; }
+await warte(30);
+ok(f11 && f11.status === 409 && gh[MP], '11 Am Mac inzwischen geändert: nicht gelöscht');
+A.merke(A.K_NICHT, []); await A.laden(); await holen();
+offline = true; const NEU = '02 Life OS/Ernährung/Meal Plan/2026-10-10 Test.md'; const v = puts;
+const { app: app8 } = A.shim(el());
+await app8.vault.create(NEU, '---\ntype: mealplan\n---\n');
+await app8.vault.trash(app8.vault.getAbstractFileByPath(NEU), true);
+offline = false; await A.warteschlangeAbarbeiten();
+ok(!gh[NEU] && puts === v && !A.lies(A.K_WARTE).length, '11 im Funkloch angelegt und wieder gelöscht: nichts gesendet');
+// 12 Überschriften und Listen-Zeilen wie Obsidian (Grundstock in Vorrat.md)
+const VO = '02 Life OS/Ernährung/Vorrat.md';
+setze(VO, '---\ntype: liste\n---\n# Grundstock\n- Salz\n- Öl\n# Bestand\n- Reis\n');
+{ const c = A.lies(A.K_CACHE); c[VO] = { ...gh[VO] }; A.merke(A.K_CACHE, c); A.zusammensetzen(); }
+const { app: app9, dv } = A.shim(el());
+const h = app9.metadataCache.getFileCache(app9.vault.getAbstractFileByPath(VO)).headings;
+const li = dv.page(VO).file.lists.values;
+const von = h[0].position.start.line, bis = h[1].position.start.line;
+ok(li.filter(l => l.position.start.line > von && l.position.start.line < bis).map(l => l.text).join() === 'Salz,Öl', '12 Grundstock: genau die Zeilen unter seiner Überschrift');
 console.log('Schreibversuche gesamt:', puts);
