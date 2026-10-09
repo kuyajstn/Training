@@ -44,4 +44,4 @@ Umschreiben statt Anhängen (5×, z. B. `Zutaten Check`, `Einkaufsliste`, `Reste
 Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "MindOS/02 Life OS/Ernährung/Kitchen Hub.md" | sort | uniq -c`.
 Offene Bauentscheidung: Umschreiben am Handy nur mit SHA-Prüfung (GitHub lehnt ab, wenn die Datei sich
 inzwischen geändert hat) und ohne Warteschlange — oder diese Schreibwege am Handy weglassen.
-Und: eine App mit mehreren Hubs (Umschalter) statt je Hub eine eigene Seite.
+Entschieden (Justin, 09.10.): **Am Handy je Hub eine eigene App** mit eigenem Symbol, kein Umschalter. Der Nachbau von Obsidian (`shim()`) wird trotzdem geteilt, nicht kopiert.
