@@ -186,8 +186,9 @@ async function senden(op) {
 }
 
 // Nicht übernommene Fassungen bleiben auf dem Handy liegen (nichts geht still verloren)
-// und stehen oben in der Leiste, bis man darauf tippt.
-const nichtUebernommen = op => merke(K_NICHT, [...(lies(K_NICHT) || []), { id:op.id, pfad:op.pfad, text:op.text, zeit:Date.now() }]);
+// und stehen oben in der Leiste, bis man darauf tippt. `grund` steht dort mit dabei.
+const nichtUebernommen = (op, grund = 'am Mac geändert') =>
+  merke(K_NICHT, [...(lies(K_NICHT) || []), { id:op.id, pfad:op.pfad, text:op.text, grund, zeit:Date.now() }]);
 
 // Eine neue Fassung enthält alles, was für diese Datei schon wartet: Sie ersetzt es, statt
 // sich dahinter zu stellen. Ausnahme: eine noch nicht abgeschickte neue Datei bekommt einfach
@@ -221,10 +222,10 @@ async function abarbeiten() {
       if (!op) break;
       imFlug = op.id;
       let r;
-      try { r = await senden(op); }
+      try { r = await senden(op); offline = false; }
       catch (e) {
         if (e instanceof Konflikt) nichtUebernommen(op);        // raus aus der Schlange, aber aufgehoben
-        else if (!(e instanceof HttpFehler)) break;             // kein Netz: beim nächsten Mal
+        else if (!(e instanceof HttpFehler)) { offline = true; break; }   // kein Netz: beim nächsten Mal
         else {                                                  // echter Fehler: bleibt stehen und hängt
           merke(K_WARTE, (lies(K_WARTE) || []).map(o => o.id === op.id ? { ...o, fehler:e.message, status:e.status } : o));
           break;
@@ -232,32 +233,38 @@ async function abarbeiten() {
       }
       // Was danach für dieselbe Datei wartet, beruht auf dieser eigenen Änderung: sha nachziehen.
       const rest = (lies(K_WARTE) || []).filter(o => o.id !== op.id);
-      if (r && r.vor !== undefined) rest.forEach(o => { if (o.pfad === op.pfad && o.art === 'ersetzen' && (o.sha ?? null) === r.vor) o.sha = r.nach; });
+      // Gilt auch fürs Löschen: Wurde eine Datei angelegt und gleich wieder gelöscht, während das
+      // Anlegen unterwegs war, kennt das Löschen erst jetzt den sha, den GitHub dafür verlangt.
+      if (r && r.vor !== undefined) rest.forEach(o => { if (o.pfad === op.pfad && (o.art === 'ersetzen' || o.art === 'loeschen') && (o.sha ?? null) === r.vor) o.sha = r.nach; });
       merke(K_WARTE, rest);
     }
   } finally { imFlug = null; zusammensetzen(); status(); }
 }
 
-// Ohne Netz bleibt der Eintrag wartend und gilt für den Hub als gespeichert (wie bisher).
-// Schlägt GitHub ihn ab, bekommt der Hub den Fehler zu sehen.
+// Sofort anzeigen, im Hintergrund senden (seit 09.10.). Der Eintrag steht in der Warteschlange
+// und ist damit sofort in der App, ohne auf GitHub zu warten (vorher: eine Netzlaufzeit pro Tipp).
+// Scheitert das Senden, steht es oben in der Leiste, die Fassung bleibt aufgehoben, und die
+// Ansicht springt auf den echten Stand zurück. Der Hub selbst bekommt keinen Fehler mehr zu sehen.
 async function schreiben(op) {
   op.id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  einreihen(op); zusammensetzen(); status();
-  await warteschlangeAbarbeiten();
-  const nicht = (lies(K_NICHT) || []).find(n => n.id === op.id);
-  if (nicht) {
-    // Der Hub hat einen veralteten Stand im Kopf. Neu laden und neu aufbauen, sonst
-    // überschriebe der nächste Klick die fremde Änderung mit dem alten Stand.
-    laden().then(() => hubStarten());
-    throw new Konflikt(op);
-  }
-  const haengt = (lies(K_WARTE) || []).find(o => o.id === op.id && o.fehler);
-  if (haengt) {
-    // Ein Fehler beim eigenen Klick geht zurück an den Hub, statt die Schlange zu blockieren.
-    merke(K_WARTE, (lies(K_WARTE) || []).filter(o => o.id !== op.id)); status();
-    throw new HttpFehler(haengt.status, haengt.fehler);
-  }
-  neuStarten();
+  einreihen(op); zusammensetzen(); status(); neuStarten();
+  warteschlangeAbarbeiten().then(() => {
+    if ((lies(K_NICHT) || []).some(n => n.id === op.id)) {
+      // Der Hub hat einen veralteten Stand im Kopf. Neu laden und neu aufbauen, sonst
+      // überschriebe der nächste Tipp die fremde Änderung mit dem alten Stand.
+      laden().then(() => hubStarten());
+      return;
+    }
+    const haengt = (lies(K_WARTE) || []).find(o => o.id === op.id && o.fehler);
+    if (haengt) {
+      // Echter Fehler (z. B. Schlüssel ohne Recht): aufheben, aus der Schlange nehmen, damit
+      // dahinter Wartendes weiterläuft, und die Ansicht auf den echten Stand zurücksetzen.
+      nichtUebernommen(op, haengt.fehler);
+      merke(K_WARTE, (lies(K_WARTE) || []).filter(o => o.id !== op.id));
+      zusammensetzen(); status(); neuStarten();
+      warteschlangeAbarbeiten();
+    }
+  });
 }
 
 // ── Obsidian nachbilden ─────────────────────────────────────────
@@ -606,9 +613,10 @@ let offline = false;
 function status() {
   const w = lies(K_WARTE) || [], fehler = w.find(o => o.fehler), nicht = lies(K_NICHT) || [];
   const stand = lies(K_STAND);
-  const text = nicht.length ? `Nicht übernommen: ${[...new Set(nicht.map(n => n.pfad.split('/').pop().replace(/\.md$/, '')))].join(', ')} — am Mac geändert. Tippen zum Ausblenden.`
+  const letzter = nicht[nicht.length - 1];
+  const text = nicht.length ? `Nicht übernommen: ${[...new Set(nicht.map(n => dateiName(n.pfad)))].join(', ')} — ${letzter.grund || 'am Mac geändert'}. Tippen zum Ausblenden.`
     : fehler ? `Eintrag hängt: ${fehler.fehler}`
-    : w.length ? `${w.length} ${w.length === 1 ? 'Eintrag wartet' : 'Einträge warten'} auf Netz`
+    : w.length && offline ? `${w.length} ${w.length === 1 ? 'Eintrag wartet' : 'Einträge warten'} auf Netz`
     : offline ? `Offline · Stand ${stand ? new Date(stand).toLocaleString('de-DE', { weekday:'short', hour:'2-digit', minute:'2-digit' }) : 'unbekannt'}`
     : '';
   statusEl.textContent = text;

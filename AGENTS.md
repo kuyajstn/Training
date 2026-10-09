@@ -31,6 +31,9 @@ Der Schlüssel (`tr-konf`) gilt für beide, alles andere im Speicher trägt das 
 - **Das Rad (Wdh × kg) gehört nur der App** (`radOeffnen` in `app.js`): Es füllt die Felder `.tr-satz .g-w/.g-g`, die der
   Hub zeichnet. Benennt der Hub diese Klassen um, findet das Rad nichts mehr.
 - **Schreiben läuft immer über die Warteschlange, streng nacheinander** (`schreiben` → `einreihen` → `abarbeiten`).
+  **Sofort anzeigen (seit 09.10.):** `schreiben` kehrt zurück, sobald der Eintrag eingereiht ist; gesendet wird im
+  Hintergrund. Der Hub bekommt deshalb keine Fehler mehr zu sehen: Was scheitert, steht oben in der Leiste
+  (mit Grund), die Fassung liegt unter `<kürzel>-nicht`, und die Ansicht springt auf den echten Stand zurück.
   `modify` hängt an, wenn der neue Text mit dem alten beginnt, sonst schreibt es um (`art:'ersetzen'`) — mit dem
   sha, auf dem die Änderung beruht. Lehnt GitHub ab (409/422), wird nichts überschrieben: Die Fassung landet unter
   `<kürzel>-nicht` und steht oben in der Leiste. Löschen (`trash`, `trashFile`) genauso, mit sha.
