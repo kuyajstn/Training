@@ -546,16 +546,45 @@ function markdown(text) {
   schliessen(); if (code !== null) out.push(`<pre>${esc(code)}</pre>`);
   return out.join('');
 }
+// Rezepte (type: recipe) als Kochansicht (10.10.): Zutaten und Zubereitung oben, alles andere
+// (Werte, Notizen, Wiegeliste, Info-Kästen) eingeklappt am Ende. Sortiert wird nach Überschrift,
+// die Notiz bleibt unverändert. Ohne passende Überschrift zeigt der Leser alles wie bisher.
+const KOCHEN = /🛒|🔥|📦|zutaten|zubereitung|bausteine|produkt/i;
+function kochteile(text) {
+  const body = text.replace(/^---\n[\s\S]*?\n---\n?/, '');
+  const teile = []; let akt = { kopf:null, zeilen:[] }, imCode = false;
+  for (const z of body.split('\n')) {
+    if (/^\s*```/.test(z)) imCode = !imCode;
+    if (!imCode && /^#{1,6}\s/.test(z)) { teile.push(akt); akt = { kopf:z, zeilen:[z] }; continue; }
+    akt.zeilen.push(z);
+  }
+  teile.push(akt);
+  const koch = teile.filter(t => t.kopf && KOCHEN.test(t.kopf));
+  if (!koch.length) return null;
+  const rest = teile.filter(t => !koch.includes(t) && !/^#\s/.test(t.kopf || '') && t.zeilen.some(z => z.trim() && !/^#\s/.test(z)));
+  const text_ = l => l.map(t => t.zeilen.join('\n')).join('\n\n');
+  return { koch:text_(koch), rest:rest.length ? text_(rest) : '' };
+}
+// `video:` an der Rezeptnotiz (Adresse oder Liste): ein Knopf, der YouTube, TikTok oder Instagram öffnet.
+function videoKnoepfe(v) {
+  const liste = (Array.isArray(v) ? v : [v]).filter(u => typeof u === 'string' && /^https?:\/\//.test(u.trim()));
+  const name = u => /youtu/.test(u) ? 'YouTube' : /tiktok/.test(u) ? 'TikTok' : /instagram/.test(u) ? 'Instagram' : 'Video';
+  return liste.length ? `<div class="le-videos">${liste.map(u => `<a class="le-video" href="${esc(u.trim())}" target="_blank" rel="noopener">▶ ${name(u)}</a>`).join('')}</div>` : '';
+}
 let wachSperre = null;
 async function leserOeffnen(pfad) {
   const d = dateien[pfad]; if (!d) return;
   document.getElementById('leser')?.remove();
   const { fm } = frontmatter(d.text);
   const titelbild = typeof fm.banner === 'string' ? bilder[fm.banner] : null;
+  const teile = fm.type === 'recipe' ? kochteile(d.text) : null;
+  const inhalt = (fm.type === 'recipe' ? videoKnoepfe(fm.video) : '') + (teile
+    ? markdown(teile.koch) + (teile.rest ? `<details class="le-mehr"><summary>Werte und Notizen</summary>${markdown(teile.rest)}</details>` : '')
+    : markdown(d.text));
   const el = document.createElement('div'); el.id = 'leser';
   el.innerHTML = `<div class="le-blatt" role="dialog" aria-modal="true">
     <div class="le-kopf"><b>${esc(pfad.split('/').pop().replace(/\.md$/, ''))}</b><button class="le-zu" aria-label="Schließen">✕</button></div>
-    <div class="le-inhalt">${titelbild ? `<img class="le-banner" src="${titelbild}" alt="">` : ''}${markdown(d.text)}</div></div>`;
+    <div class="le-inhalt">${titelbild ? `<img class="le-banner" src="${titelbild}" alt="">` : ''}${inhalt}</div></div>`;
   document.body.appendChild(el); document.body.classList.add('le-offen');
   const zu = () => { el.remove(); document.body.classList.remove('le-offen'); wachSperre?.release().catch(() => {}); wachSperre = null; };
   el.querySelector('.le-zu').onclick = zu;

@@ -69,6 +69,15 @@ body.le-offen { overflow:hidden; }
 .le-inhalt mark { background:rgba(224,164,104,.25); color:inherit; border-radius:3px; padding:0 2px; }
 .le-inhalt a { color:var(--app-a,#e0a468); }
 .le-inhalt hr { border:0; border-top:1px solid rgba(255,255,255,.08); margin:18px 0; }
+.le-videos { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 6px; }
+.le-video { display:inline-flex; align-items:center; gap:6px; padding:10px 16px; border-radius:999px; background:#26231f; border:1px solid rgba(255,255,255,.1);
+  color:var(--app-a,#e0a468) !important; font:700 15px -apple-system,sans-serif; text-decoration:none; }
+/* Kochansicht: Werte und Notizen eingeklappt am Ende (10.10.) */
+.le-mehr { margin:26px 0 0; border-top:1px solid rgba(255,255,255,.08); }
+.le-mehr summary { list-style:none; cursor:pointer; padding:16px 0 4px; font:600 14px -apple-system,sans-serif; color:#8a8177; }
+.le-mehr summary::-webkit-details-marker { display:none; }
+.le-mehr summary::after { content:' ›'; }
+.le-mehr[open] summary::after { content:' ⌄'; }
 .le-tab { overflow-x:auto; margin:8px -20px; padding:0 20px; }
 .le-tab table { border-collapse:collapse; font-size:13px; line-height:1.35; min-width:100%; }
 .le-tab td { padding:7px 8px 7px 0; border-bottom:1px solid rgba(255,255,255,.06); color:#d6d0c8; white-space:nowrap; }
