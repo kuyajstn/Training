@@ -10,10 +10,15 @@ html, body { background:#0A0908; }
 #hub .kh { border-radius:0 !important; border:0 !important; overflow:visible !important; min-height:100dvh;
   padding:0 14px calc(var(--sa-u) + 86px) !important; box-sizing:border-box; }
 
-/* Kopf: oben angeheftet, unter der Statusleiste des iPhones. */
-#hub .kh-kopf { position:sticky; top:0; z-index:30; margin:0 -14px 14px !important; padding:calc(var(--sa-o) + 8px) 16px 10px;
+/* Kopf „Kitchen“ mit Glocke: am Handy weg (Justin, 10.10.). Die Glocke bleibt am Mac, ihre Knöpfe
+   gehen ohnehin an Claudian. Oben bleibt nur Platz für die Statusleiste des iPhones. */
+#hub .kh-kopf { display:none !important; }
+#hub .kh { padding-top:calc(var(--sa-o) + 8px) !important; }
+/* Tageszeile im Tagebuch (Heute · ‹ Serie Kalender ›) ist jetzt die angeheftete Zeile. Der negative
+   Rand hebt den Abstand oben auf, damit sie beim Kleben bis unter die Statusleiste reicht. */
+#hub .kt-top { position:sticky; top:0; z-index:30; margin:calc(-1 * (var(--sa-o) + 8px)) -14px 14px !important;
+  padding:calc(var(--sa-o) + 8px) 14px 10px !important;
   background:rgba(10,9,8,.86); -webkit-backdrop-filter:blur(18px) saturate(1.3); backdrop-filter:blur(18px) saturate(1.3); }
-#hub .kh-kopf .kh-h1 { margin:0 !important; font-size:26px; letter-spacing:-.02em; }
 
 /* Leiste unten statt Pillen oben: drei Reiter, Symbol über Wort. */
 #hub .kh-tabs { position:fixed; z-index:40; left:0; right:0; bottom:0; margin:0 !important; display:grid !important;
