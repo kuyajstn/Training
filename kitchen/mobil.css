@@ -19,6 +19,9 @@ html, body { background:#0A0908; }
 #hub .kt-top { position:sticky; top:0; z-index:30; margin:calc(-1 * (var(--sa-o) + 8px)) -14px 14px !important;
   padding:calc(var(--sa-o) + 8px) 14px 10px !important;
   background:rgba(10,9,8,.86); -webkit-backdrop-filter:blur(18px) saturate(1.3); backdrop-filter:blur(18px) saturate(1.3); }
+/* Kalender- und Flammenblatt hängen IN der Zeile. Mit z-index 30 lag die ganze Zeile unter dem
+   Schleier (40), das Blatt wurde mit unscharf. Offen hebt sich die Zeile darüber (10.10.). */
+#hub .kt-top:has(.kt-pill-wrap.is-auf) { z-index:47; }
 
 /* Leiste unten statt Pillen oben: drei Reiter, Symbol über Wort. */
 #hub .kh-tabs { position:fixed; z-index:40; left:0; right:0; bottom:0; margin:0 !important; display:grid !important;
