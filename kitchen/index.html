@@ -32,6 +32,16 @@ window.HUB_APP = {
       const m = b.textContent.trim().match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u);
       if (m) b.innerHTML = `<i aria-hidden="true">${m[1]}</i><span>${m[2]}</span>`;
     });
+    // Jeder Reiter merkt sich seine eigene Scrollposition (10.10.): Vorher übernahm Planen die Position
+    // des langen Tagebuchs, und die Pille rutschte unter die Statusleiste. Gemerkt wird vor dem Wechsel
+    // (capture), gesetzt danach.
+    const pos = (window.__kiScroll ??= {});
+    root.addEventListener('click', e => {
+      const t = e.target.closest('.ml-tab'); if (!t) return;
+      const alt = window.__khUI?.tab; if (!alt || alt === t.dataset.tab) return;
+      pos[alt] = window.scrollY;
+      setTimeout(() => window.scrollTo(0, pos[t.dataset.tab] || 0), 0);
+    }, true);
   },
 };
 </script>
