@@ -91,3 +91,9 @@ html, body { background:#0A0908; }
 #hub .kh button.kt-plus { border-radius:14px; }
 #hub .kh button.kh-close, #leser .kh button.kh-close { width:40px; height:40px; border-radius:14px; font-size:16px; }
 #hub .kh button.kh-close svg, #leser .kh button.kh-close svg { width:14px; height:14px; }
+
+/* Meal Prep im Kochlauf (10.10.): „Gekocht für“ unter den Bestandteilen, zweiter Weg am Ende */
+#leser .lauf .lauf-port-l { margin:18px 0 6px 2px; }
+#leser .lauf .lauf-port .z { width:30px; }
+#leser .lauf .lauf-port-w { font-size:.8rem; color:var(--tx2); }
+#leser .lauf .lf .lauf-zweit { margin-top:8px; }

@@ -610,6 +610,20 @@ function laufBild(r, bild, wahl, ik) {
   const w = r.klasse === 'Baukasten' ? wahl.filter(Boolean).join(' + ') : '';
   return `<div class="ep-hero${bild ? '' : ' ohne'}"${bild ? ` style="background-image:url('${bild}')"` : ''}><div class="ep-hero-t"><div class="ep-name">${esc(r.name)}</div><div class="kh-card-meta"><span class="ep-klasse">${esc(r.klasse)}</span>${r.dauer ? `<span>${ik.zeit}${esc(r.dauer)} Min</span>` : ''}${w ? `<span class="lauf-wahl">${esc(w)}</span>` : ''}</div></div></div>`;
 }
+// Beim Kochen zählt die Menge im Topf (Justin, 10.10.): Steht vorn eine Zahl („50 g Haferflocken“),
+// wird sie mit den Portionen malgenommen. Steht keine da (Baukasten-Zeilen), kommt die Menge des
+// Bausteins dazu („Chicken Stripes … · 600 g“). Makros und Bestandteile bleiben pro Portion.
+const zahlDe = x => String(Math.round(x * 100) / 100).replace('.', ',');
+function mengenImTopf(text, teile, p) {
+  return text.split('\n').map(z => {
+    const m = z.match(/^(\s*[-*+]\s+(?:\[[ xX]\]\s+)?)(.*)$/); if (!m) return z;
+    const vorn = m[2].match(/^(\d+(?:[.,]\d+)?)(\s*)(.*)$/);
+    if (vorn) return p === 1 ? z : m[1] + zahlDe(Number(vorn[1].replace(',', '.')) * p) + vorn[2] + vorn[3];
+    const b = teile.find(x => x.n != null && normLauf(m[2]).includes(normLauf(x.name)));
+    if (!b) return z;
+    return z + ' · ' + (b.schritt ? `${zahlDe(b.n * b.schritt.g * p)} ${b.schritt.e}` : `${zahlDe(b.n * p)}×`);
+  }).join('\n');
+}
 function kochlaufOeffnen(pfad, text, fm, bild, zu) {
   const r = window.__kh.rezept(pfad), ik = window.__kh.ikon || { zeit:'', plus:'+', minus:'−', pfeil:'' };
   const el = document.getElementById('leser');
@@ -635,12 +649,17 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
         const sch = b.schritt, menge = b.n == null ? (sch ? `? ${sch.e}` : '?') : (sch ? `${Math.round(b.n * sch.g * 100) / 100} ${sch.e}` : b.n);
         return `<div class="tg-bst-z${b.n == null ? ' is-offen' : ''}"><div class="tg-bst-n">${esc(b.name)}</div><div class="ep-step"><span data-m="${esc(b.name)}" data-d="-1" role="button" aria-label="Weniger">${ik.minus}</span><span class="z">${esc(menge)}</span><span data-m="${esc(b.name)}" data-d="1" role="button" aria-label="Mehr">${ik.plus}</span></div><div class="tg-bst-k">${b.n == null ? 'Menge?' : b.kcal == null ? '' : Math.round(b.kcal * b.n) + ' kcal'}</div></div>`;
       }).join('') + '</div>';
+      // Meal Prep (10.10.): Wie viele Portionen entstehen? Eine wird gegessen, der Rest geht nach „Zuerst“.
+      const p = L.portionen || 1;
+      inhalt += `<div class="kh-pp-lbl lauf-port-l">Gekocht für</div><div class="ep-port"><div class="ep-step lauf-port"><span data-port="-1" role="button" aria-label="Weniger">${ik.minus}</span><span class="z">${p}</span><span data-port="1" role="button" aria-label="Mehr">${ik.plus}</span></div><span class="lauf-port-w">${p === 1 ? 'Portion' : 'Portionen'}</span></div>`;
       inhalt += '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta is-voll" data-weiter>Weiter</button></div>';
     } else {
       const t = kochteile(nurGewaehltes(text, r.gruppen, L.wahl));
+      const tl = r.teile(L.wahl, L.mengen), p = L.portionen || 1;
       let n = 0;
       inhalt += t.koch.split(/\n(?=#{1,6}\s)/).map(a => {
         const art = VORBEREITEN.test(a.split('\n')[0]) ? 'v' : 'k';
+        if (art === 'v') a = mengenImTopf(a, Array.isArray(tl) ? tl : [], p);
         return markdown(a).replace(/<li class="le-hak/g, () => `<li data-n="${n++}" data-art="${art}" class="le-hak`);
       }).join('') + '<div id="lf"></div>';
     }
@@ -667,16 +686,21 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
     alle.forEach(li => li.classList.remove('jetzt'));
     if (vV) alle.find(li => li.dataset.art === 'k' && !L.haken.includes(li.dataset.n))?.classList.add('jetzt');
     const fertig = vV && kV, fuss = el.querySelector('#lf');
-    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button class="kh-dlg-btn kh-prim ep-cta is-voll" data-eintragen>Als gegessen eintragen</button>' : '';
+    const p = (L && L.portionen) || 1;
+    fuss.className = fertig ? 'lf' : '';
+    fuss.innerHTML = !fertig ? '' : p > 1
+      ? `<button class="kh-dlg-btn kh-prim ep-cta is-voll" data-eintragen>1 gegessen · ${p - 1} in Zuerst</button><button class="kh-dlg-btn kh-prim ep-cta lauf-zweit" data-ablegen>Alle ${p} in Zuerst</button>`
+      : '<button class="kh-dlg-btn kh-prim ep-cta is-voll" data-eintragen>Als gegessen eintragen</button>';
     if (L) { L.fertig = fertig; speichern(); }
   };
   // Nach „Fertig“ ist der Lauf vorbei: Schließen räumt ihn ab.
   const schliessen = () => { if (L && L.fertig) localStorage.removeItem(laufKey(pfad)); zu(); };
   el.onclick = e => {
     if (e.target === el) return schliessen();
-    const t = e.target.closest('[data-los],[data-weiter],[data-zurueck],[data-reihe],[data-g],[data-m],[data-eintragen],li[data-n]'); if (!t) return;
+    const t = e.target.closest('[data-los],[data-weiter],[data-zurueck],[data-reihe],[data-g],[data-m],[data-port],[data-eintragen],[data-ablegen],li[data-n]'); if (!t) return;
+    if (t.dataset.port != null) { const n = (L.portionen || 1) + Number(t.dataset.port); if (n >= 1 && n <= 12) L.portionen = n; speichern(); return zeichnen(); }
     if (t.dataset.zurueck != null) {
-      if (phase === 'kochen' && r.gruppen.length) { phase = L.phase = 'waehlen'; speichern(); el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen(); }
+      if (phase === 'kochen') { phase = L.phase = 'waehlen'; speichern(); el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen(); }
       // Zurück zum Lesen beendet den Lauf. Sind schon Haken gesetzt, erst beim zweiten Tipp (wie „Eingekauft“).
       if (L.haken.length && !t.classList.contains('scharf')) {
         t.classList.add('scharf'); t.textContent = 'Abbrechen';
@@ -688,7 +712,7 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
     }
     if (t.dataset.los != null) {
       L = { phase:'waehlen', wahl:[...r.wahl], mengen:{ ...r.mengen }, haken:[], offen:null };
-      phase = L.phase = r.gruppen.length ? 'waehlen' : 'kochen'; speichern();
+      phase = L.phase = 'waehlen'; L.portionen = r.portionen || 1; speichern();
       el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen();
     }
     if (t.dataset.weiter != null) { phase = L.phase = 'kochen'; speichern(); el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen(); }
@@ -699,10 +723,15 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
       const n = (b.n == null ? 0 : b.n) + Number(t.dataset.d);
       if (n >= 0) L.mengen[b.name] = n; speichern(); return zeichnen();
     }
-    if (t.dataset.eintragen != null) {
-      const { wahl, mengen } = L;
+    if (t.dataset.ablegen != null) {
+      const { wahl, mengen } = L, n = L.portionen || 1;
       localStorage.removeItem(laufKey(pfad)); L = null; zu();
-      return window.__kh.eintragen(pfad, wahl, mengen);
+      return window.__kh.ablegen(pfad, wahl, mengen, n);
+    }
+    if (t.dataset.eintragen != null) {
+      const L0 = L, { wahl, mengen } = L;
+      localStorage.removeItem(laufKey(pfad)); L = null; zu();
+      return window.__kh.eintragen(pfad, wahl, mengen, { rest: (L0.portionen || 1) - 1 });
     }
     const k = t.dataset.n, i = L.haken.indexOf(k);
     i < 0 ? L.haken.push(k) : L.haken.splice(i, 1);
