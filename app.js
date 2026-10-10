@@ -623,7 +623,7 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
     if (phase === 'lesen') {
       const t = kochteile(text);
       inhalt += markdown(t.koch) + (t.rest ? `<details class="le-mehr"><summary>Werte und Notizen</summary>${markdown(t.rest)}</details>` : '')
-        + '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta" data-los>Kochen starten</button></div>';
+        + '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta is-voll" data-los>Kochen starten</button></div>';
     } else if (phase === 'waehlen') {
       inhalt += r.gruppen.map((g, gi) => {
         const auf = L.offen === gi || (L.offen == null && gi === 0 && !L.wahl.some(Boolean));
@@ -635,7 +635,7 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
         const sch = b.schritt, menge = b.n == null ? (sch ? `? ${sch.e}` : '?') : (sch ? `${Math.round(b.n * sch.g * 100) / 100} ${sch.e}` : b.n);
         return `<div class="tg-bst-z${b.n == null ? ' is-offen' : ''}"><div class="tg-bst-n">${esc(b.name)}</div><div class="ep-step"><span data-m="${esc(b.name)}" data-d="-1" role="button" aria-label="Weniger">${ik.minus}</span><span class="z">${esc(menge)}</span><span data-m="${esc(b.name)}" data-d="1" role="button" aria-label="Mehr">${ik.plus}</span></div><div class="tg-bst-k">${b.n == null ? 'Menge?' : b.kcal == null ? '' : Math.round(b.kcal * b.n) + ' kcal'}</div></div>`;
       }).join('') + '</div>';
-      inhalt += '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta" data-weiter>Weiter</button></div>';
+      inhalt += '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta is-voll" data-weiter>Weiter</button></div>';
     } else {
       const t = kochteile(nurGewaehltes(text, r.gruppen, L.wahl));
       let n = 0;
@@ -667,7 +667,7 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
     alle.forEach(li => li.classList.remove('jetzt'));
     if (vV) alle.find(li => li.dataset.art === 'k' && !L.haken.includes(li.dataset.n))?.classList.add('jetzt');
     const fertig = vV && kV, fuss = el.querySelector('#lf');
-    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button class="kh-dlg-btn kh-prim ep-cta" data-eintragen>Als gegessen eintragen</button>' : '';
+    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button class="kh-dlg-btn kh-prim ep-cta is-voll" data-eintragen>Als gegessen eintragen</button>' : '';
     if (L) { L.fertig = fertig; speichern(); }
   };
   // Nach „Fertig“ ist der Lauf vorbei: Schließen räumt ihn ab.

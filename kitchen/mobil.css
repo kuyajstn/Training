@@ -83,3 +83,11 @@ html, body { background:#0A0908; }
 .lauf .lf { position:sticky; bottom:calc(-1 * (var(--sa-u) + 18px)); margin:20px -16px calc(-1 * (var(--sa-u) + 18px)); padding:14px 16px calc(var(--sa-u) + 18px);
   background:var(--sf); border-top:1px solid var(--ln); z-index:2; }
 .lauf .lf .ep-cta { margin:0; }
+
+/* ── Knöpfe am Handy (10.10., Justin) ──
+   Plus abgerundet statt rund: Am Mac gibt Obsidian jeder Rundung die Apple-Eckform (corner-shape: superellipse),
+   der Kreis wirkt dort wie ein weiches Quadrat. Safari am iPhone kennt das nicht, 14 px kommt dem am nächsten.
+   ✕ und ‹ so groß wie das Plus (40 px): bündig mit Überschrift und Datum, gut mit dem Daumen zu treffen. */
+#hub .kh button.kt-plus { border-radius:14px; }
+#hub .kh button.kh-close, #leser .kh button.kh-close { width:40px; height:40px; border-radius:14px; font-size:16px; }
+#hub .kh button.kh-close svg, #leser .kh button.kh-close svg { width:14px; height:14px; }
