@@ -77,7 +77,7 @@ Liste neu erzeugen: `grep -o "dv\.[a-zA-Z]*\|app\.[a-zA-Z.]*\|require([^)]*)" "M
 Entschieden (Justin, 09.10.): **Umschreiben mit sha-Prüfung, auch aus der Warteschlange.** In `app.js` gebaut,
 dazu der Spielstand jede Minute und eine Ansage, wenn das Zusammenführen scheitert.
 **Ausgerollt am 09.10.** (`https://kuyajstn.github.io/mindos-apps/kitchen/`): alle Stellen nachgebildet, Handy-Layout (Leiste unten, Kopf
-angeheftet, Dialog als Blatt), Symbol `kitchen/icon-*.png` (Quelle `werkzeug/icon-kitchen.html`, fotografiert mit
+angeheftet, Dialog als Blatt; **seit 10.10.** ohne den Kopf „Kitchen“ mit Glocke, angeheftet ist die Tageszeile `.kt-top` des Tagebuchs), Symbol `kitchen/icon-*.png` (Quelle `werkzeug/icon-kitchen.html`, fotografiert mit
 headless Chrome: `--headless=new --window-size=512,512 --screenshot=…`, das geht auch unter 500 px). Mit dem echten
 Hub gegen eine Kopie geschrieben: anlegen, „gegessen“ umschalten, Favorit, entfernen.
 **Leser** (`leserOeffnen` in `app.js`): Am Mac öffnet der Hub Notizen in Obsidian, am Handy zeigt die App sie selbst
