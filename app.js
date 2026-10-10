@@ -644,9 +644,12 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
         return markdown(a).replace(/<li class="le-hak/g, () => `<li data-n="${n++}" data-art="${art}" class="le-hak`);
       }).join('') + '<div id="lf"></div>';
     }
-    el.innerHTML = `<div class="le-blatt kh lauf" role="dialog" aria-modal="true"><div class="ep-kopf lauf-kopf">${phase === 'lesen' ? '<span style="flex:1"></span>' : '<div class="kf"></div>'}<button class="kh-close" aria-label="Schließen">✕</button></div><div class="le-inhalt">${inhalt}</div></div>`;
+    // ‹ = einen Schritt zurück (Kochen → Wählen → Lesen); zurück beim Lesen beendet den Lauf.
+    // ✕ = nur pausieren: Der Lauf bleibt, bis er fertig, abgebrochen oder 12 Stunden alt ist.
+    const zurueck = phase === 'lesen' ? '' : `<button class="kh-close" data-zurueck aria-label="Zurück">${ik.zurueck || '‹'}</button>`;
+    el.innerHTML = `<div class="le-blatt kh lauf" role="dialog" aria-modal="true"><div class="ep-kopf lauf-kopf">${zurueck}${phase === 'lesen' ? '<span style="flex:1"></span>' : '<div class="kf"></div>'}<button class="kh-close" data-zu aria-label="Schließen">✕</button></div><div class="le-inhalt">${inhalt}</div></div>`;
     el.querySelector('.le-inhalt').scrollTop = y;
-    el.querySelector('.kh-close').onclick = schliessen;
+    el.querySelector('[data-zu]').onclick = schliessen;
     if (phase === 'kochen') { el.querySelectorAll('li[data-n]').forEach(li => li.classList.toggle('an', L.haken.includes(li.dataset.n))); balken(false); }
     else if (phase === 'waehlen') balken(false, true);
   };
@@ -671,7 +674,18 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
   const schliessen = () => { if (L && L.fertig) localStorage.removeItem(laufKey(pfad)); zu(); };
   el.onclick = e => {
     if (e.target === el) return schliessen();
-    const t = e.target.closest('[data-los],[data-weiter],[data-reihe],[data-g],[data-m],[data-eintragen],li[data-n]'); if (!t) return;
+    const t = e.target.closest('[data-los],[data-weiter],[data-zurueck],[data-reihe],[data-g],[data-m],[data-eintragen],li[data-n]'); if (!t) return;
+    if (t.dataset.zurueck != null) {
+      if (phase === 'kochen' && r.gruppen.length) { phase = L.phase = 'waehlen'; speichern(); el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen(); }
+      // Zurück zum Lesen beendet den Lauf. Sind schon Haken gesetzt, erst beim zweiten Tipp (wie „Eingekauft“).
+      if (L.haken.length && !t.classList.contains('scharf')) {
+        t.classList.add('scharf'); t.textContent = 'Abbrechen';
+        setTimeout(() => { if (t.isConnected) { t.classList.remove('scharf'); t.innerHTML = ik.zurueck || '‹'; } }, 3000);
+        return;
+      }
+      localStorage.removeItem(laufKey(pfad)); L = null; phase = 'lesen';
+      el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen();
+    }
     if (t.dataset.los != null) {
       L = { phase:'waehlen', wahl:[...r.wahl], mengen:{ ...r.mengen }, haken:[], offen:null };
       phase = L.phase = r.gruppen.length ? 'waehlen' : 'kochen'; speichern();

@@ -67,6 +67,8 @@ html, body { background:#0A0908; }
 #leser .lauf .tg-bst-z.is-offen .ep-step .z, #leser .lauf .tg-bst-z.is-offen .tg-bst-k { color:var(--acc); }
 /* Zwei Balken neben dem ✕: Beschriftung wie .kh-pp-lbl, Spur und Füllung in den Farben des Hubs */
 .lauf .kf { flex:1; display:flex; gap:8px; }
+/* Zurück, beim zweiten Tipp Abbrechen: der Knopf wird kurz zur Pille im Akzent */
+#leser .lauf button.kh-close.scharf { width:auto; padding:0 10px; color:var(--acc-hi); border-color:var(--acc-ln); background:var(--acc-bg); font-size:.72rem; font-weight:700; }
 .lauf .kf-teil { flex:1; }
 .lauf .kf-l { font-size:.55rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--tx3); margin-bottom:5px; }
 .lauf .kf-teil.voll .kf-l { color:var(--acc-hi); }
