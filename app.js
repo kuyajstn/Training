@@ -571,6 +571,133 @@ function videoKnoepfe(v) {
   const name = u => /youtu/.test(u) ? 'YouTube' : /tiktok/.test(u) ? 'TikTok' : /instagram/.test(u) ? 'Instagram' : 'Video';
   return liste.length ? `<div class="le-videos">${liste.map(u => `<a class="le-video" href="${esc(u.trim())}" target="_blank" rel="noopener">▶ ${name(u)}</a>`).join('')}</div>` : '';
 }
+// ── Kochlauf (seit 10.10.) ───────────────────────────────────────────────────
+// Rezepte öffnen erst zum Lesen; „Kochen starten“ führt durch Wählen · Vorbereiten · Kochen.
+// Die Rechnung (Bausteine, Summen, letzte Wahl) liefert der Hub über window.__kh, die App
+// zeichnet nur. Der Stand liegt im Speicher des Handys, nie in der Notiz: Er übersteht den
+// Wechsel zu TikTok und verfällt nach „Fertig“ + Schließen oder nach 12 Stunden.
+// Warum: MindOS/05 Stack/Context/Decisions/Kochlauf statt statischer Rezeptnotiz.md
+const LAUF_DAUER = 12 * 3600 * 1000;
+const laufKey = pfad => `${APP.praefix}-lauf:${pfad}`;
+function laufLesen(pfad) {
+  const l = lies(laufKey(pfad));
+  if (!l || Date.now() - l.zeit > LAUF_DAUER) { localStorage.removeItem(laufKey(pfad)); return null; }
+  return l;
+}
+const VORBEREITEN = /🛒|📦|zutaten|bausteine|produkt/i;
+const normLauf = t => String(t).toLowerCase().replace(/[-–—]/g, ' ');
+// Zeilen, die eine NICHT gewählte Option nennen, fallen aus dem Lauf. Bleibt von einer Liste
+// nichts übrig, fällt auch ihre Zwischenüberschrift („**Dazu**“).
+function nurGewaehltes(text, gruppen, wahl) {
+  const alle = gruppen.flatMap(g => g.optionen), liste = z => /^\s*([-*+]|\d+[.)])\s/.test(z);
+  return text.split(/\n\s*\n/).map(block => {
+    const zeilen = block.split('\n');
+    const rest = zeilen.filter(z => {
+      if (!liste(z)) return true;
+      const genannt = alle.filter(o => normLauf(z).includes(normLauf(o)));
+      return !genannt.length || genannt.some(o => wahl.includes(o));
+    });
+    return zeilen.some(liste) && !rest.some(liste) && !rest.some(z => /^#{1,6}\s/.test(z)) ? null : rest.join('\n');
+  }).filter(b => b !== null).join('\n\n');
+}
+const LZEIT = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.8"/><path d="M8 4.8V8l2.2 1.4"/></svg>';
+const LPFEIL = '<svg class="p" width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 3.8 2.5 2.5 2.5-2.5"/></svg>';
+function laufMakros(s) {
+  const z = (v, g) => s && v != null ? Math.round(v) + (g ? '<small> g</small>' : '') : '–';
+  return `<div class="lm${s ? '' : ' leer'}"><div><b>${z(s && s.kcal)}</b><span>kcal</span></div><div><b>${z(s && s.carbs, 1)}</b><span>Kohlenhydrate</span></div><div class="eiw"><b>${z(s && s.protein, 1)}</b><span>Eiweiß</span></div><div><b>${z(s && s.fat, 1)}</b><span>Fett</span></div></div>`;
+}
+function laufBild(r, bild, wahl) {
+  const w = r.klasse === 'Baukasten' ? wahl.filter(Boolean).join(' + ') : '';
+  return `<div class="lh"${bild ? ` style="background-image:url('${bild}')"` : ''}><div class="lh-t"><div class="lh-n">${esc(r.name)}</div><div class="lh-m"><b>${esc(r.klasse)}</b>${r.dauer ? `<span>${LZEIT}${esc(r.dauer)} Min</span>` : ''}${w ? `<span class="wahl">${esc(w)}</span>` : ''}</div></div></div>`;
+}
+function kochlaufOeffnen(pfad, text, fm, bild, zu) {
+  const r = window.__kh.rezept(pfad);
+  const el = document.getElementById('leser');
+  let L = laufLesen(pfad);   // { phase, wahl, mengen, haken, offen, zeit }
+  let phase = L ? L.phase : 'lesen';
+  const speichern = () => { L.zeit = Date.now(); merke(laufKey(pfad), L); };
+  const zeichnen = () => {
+    const alt = el.querySelector('.le-inhalt'), y = alt ? alt.scrollTop : 0;
+    const wahl = L ? L.wahl : r.wahl, mengen = L ? L.mengen : r.mengen;
+    let inhalt = laufBild(r, bild, wahl) + laufMakros(r.summe(wahl, mengen)) + videoKnoepfe(fm.video);
+    if (phase === 'lesen') {
+      const t = kochteile(text);
+      inhalt += markdown(t.koch) + (t.rest ? `<details class="le-mehr"><summary>Werte und Notizen</summary>${markdown(t.rest)}</details>` : '')
+        + '<div class="lf"><button data-los>Kochen starten</button></div>';
+    } else if (phase === 'waehlen') {
+      inhalt += r.gruppen.map((g, gi) => {
+        const auf = L.offen === gi || (L.offen == null && gi === 0 && !L.wahl.some(Boolean));
+        return `<div class="lr${auf ? ' auf' : ''}" data-reihe="${gi}" role="button"><span class="l">${esc(g.name)}</span><span class="w${L.wahl[gi] ? '' : ' leer'}">${esc(L.wahl[gi] || 'keine')}</span>${LPFEIL}</div>`
+          + (auf ? `<div class="lc">${g.optionen.map(o => `<span class="${L.wahl[gi] === o ? 'an' : ''}" data-g="${gi}" data-o="${esc(o)}" role="button">${esc(o)}</span>`).join('')}</div>` : '');
+      }).join('');
+      const tl = r.teile(L.wahl, L.mengen);
+      if (Array.isArray(tl) && tl.length) inhalt += '<div class="lt">Mengen</div><div class="lb">' + tl.map(b => {
+        const sch = b.schritt, menge = b.n == null ? (sch ? `? ${sch.e}` : '?') : (sch ? `${Math.round(b.n * sch.g * 100) / 100} ${sch.e}` : b.n);
+        return `<div class="${b.n == null ? 'offen' : ''}"><span class="n">${esc(b.name)}</span><span class="ls"><span data-m="${esc(b.name)}" data-d="-1" role="button">−</span><span class="z">${esc(menge)}</span><span data-m="${esc(b.name)}" data-d="1" role="button">+</span></span><span class="k">${b.n == null ? 'Menge?' : b.kcal == null ? '' : Math.round(b.kcal * b.n) + ' kcal'}</span></div>`;
+      }).join('') + '</div>';
+      inhalt += '<div class="lf"><button data-weiter>Weiter</button></div>';
+    } else {
+      const t = kochteile(nurGewaehltes(text, r.gruppen, L.wahl));
+      let n = 0;
+      inhalt += t.koch.split(/\n(?=#{1,6}\s)/).map(a => {
+        const art = VORBEREITEN.test(a.split('\n')[0]) ? 'v' : 'k';
+        return markdown(a).replace(/<li class="le-hak/g, () => `<li data-n="${n++}" data-art="${art}" class="le-hak`);
+      }).join('') + '<div id="lf"></div>';
+    }
+    el.innerHTML = `<div class="le-blatt" role="dialog" aria-modal="true"><div class="le-kopf ohne-titel"><b></b>${phase === 'lesen' ? '<span style="flex:1"></span>' : '<div class="kf"></div>'}<button class="le-zu" aria-label="Schließen">✕</button></div><div class="le-inhalt">${inhalt}</div></div>`;
+    el.querySelector('.le-inhalt').scrollTop = y;
+    el.querySelector('.le-zu').onclick = schliessen;
+    if (phase === 'kochen') { el.querySelectorAll('li[data-n]').forEach(li => li.classList.toggle('an', L.haken.includes(li.dataset.n))); balken(false); }
+    else if (phase === 'waehlen') balken(false, true);
+  };
+  // Zwei Balken neben dem ✕. Wird einer voll, leuchtet er kurz auf; der nächste offene Schritt steht groß.
+  let voll = { v:false, k:false };
+  const balken = (lebendig, leer) => {
+    const alle = [...el.querySelectorAll('li[data-n]')];
+    const zahl = art => { const l = alle.filter(li => li.dataset.art === art); return { n: leer ? 0 : l.filter(li => L.haken.includes(li.dataset.n)).length, von: leer ? 1 : l.length }; };
+    const v = zahl('v'), k = zahl('k'), vV = !leer && v.n === v.von, kV = !leer && k.n === k.von;
+    const bV = lebendig && vV && !voll.v, bK = lebendig && kV && !voll.k;
+    voll = { v:vV, k:kV };
+    el.querySelector('.kf').innerHTML = [['Vorbereiten', v, vV, bV], ['Kochen', k, kV, bK]].filter(x => x[1].von).map(([l, x, ok, b]) =>
+      `<div class="kf-teil${ok ? ' voll' : ''}${b ? ' blitz' : ''}"><div class="kf-l">${l}${ok ? ' ✓' : ''}</div><div class="kf-spur"><div class="kf-fuell" style="width:${x.n / x.von * 100}%"></div></div></div>`).join('');
+    if (leer) return;
+    alle.forEach(li => li.classList.remove('jetzt'));
+    if (vV) alle.find(li => li.dataset.art === 'k' && !L.haken.includes(li.dataset.n))?.classList.add('jetzt');
+    const fertig = vV && kV, fuss = el.querySelector('#lf');
+    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button data-eintragen>Als gegessen eintragen</button>' : '';
+    if (L) { L.fertig = fertig; speichern(); }
+  };
+  // Nach „Fertig“ ist der Lauf vorbei: Schließen räumt ihn ab.
+  const schliessen = () => { if (L && L.fertig) localStorage.removeItem(laufKey(pfad)); zu(); };
+  el.onclick = e => {
+    if (e.target === el) return schliessen();
+    const t = e.target.closest('[data-los],[data-weiter],[data-reihe],[data-g],[data-m],[data-eintragen],li[data-n]'); if (!t) return;
+    if (t.dataset.los != null) {
+      L = { phase:'waehlen', wahl:[...r.wahl], mengen:{ ...r.mengen }, haken:[], offen:null };
+      phase = L.phase = r.gruppen.length ? 'waehlen' : 'kochen'; speichern();
+      el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen();
+    }
+    if (t.dataset.weiter != null) { phase = L.phase = 'kochen'; speichern(); el.querySelector('.le-inhalt').scrollTop = 0; return zeichnen(); }
+    if (t.dataset.reihe != null) { const gi = +t.dataset.reihe; L.offen = L.offen === gi ? null : gi; speichern(); return zeichnen(); }
+    if (t.dataset.g != null) { const gi = +t.dataset.g; L.wahl[gi] = L.wahl[gi] === t.dataset.o ? null : t.dataset.o; L.offen = null; speichern(); return zeichnen(); }
+    if (t.dataset.m != null) {
+      const b = (r.teile(L.wahl, L.mengen) || []).find(x => x.name === t.dataset.m); if (!b) return;
+      const n = (b.n == null ? 0 : b.n) + Number(t.dataset.d);
+      if (n >= 0) L.mengen[b.name] = n; speichern(); return zeichnen();
+    }
+    if (t.dataset.eintragen != null) {
+      const { wahl, mengen } = L;
+      localStorage.removeItem(laufKey(pfad)); L = null; zu();
+      return window.__kh.eintragen(pfad, wahl, mengen);
+    }
+    const k = t.dataset.n, i = L.haken.indexOf(k);
+    i < 0 ? L.haken.push(k) : L.haken.splice(i, 1);
+    t.classList.toggle('an', i < 0); balken(true);
+  };
+  zeichnen();
+  if (phase === 'kochen') voll = { v:false, k:false }, balken(false);
+}
+
 let wachSperre = null;
 async function leserOeffnen(pfad) {
   const d = dateien[pfad]; if (!d) return;
@@ -587,8 +714,12 @@ async function leserOeffnen(pfad) {
     <div class="le-inhalt">${titelbild ? `<img class="le-banner" src="${titelbild}" alt="">` : ''}${inhalt}</div></div>`;
   document.body.appendChild(el); document.body.classList.add('le-offen');
   const zu = () => { el.remove(); document.body.classList.remove('le-offen'); wachSperre?.release().catch(() => {}); wachSperre = null; };
-  el.querySelector('.le-zu').onclick = zu;
-  el.addEventListener('click', e => { if (e.target === el) zu(); const li = e.target.closest('.le-hak'); if (li) li.classList.toggle('an'); });
+  // Rezepte mit Zutaten oder Zubereitung laufen als Kochlauf, sobald der Hub seine Rechnung anbietet.
+  if (teile && window.__kh?.rezept(pfad)) kochlaufOeffnen(pfad, d.text, fm, titelbild, zu);
+  else {
+    el.querySelector('.le-zu').onclick = zu;
+    el.addEventListener('click', e => { if (e.target === el) zu(); const li = e.target.closest('.le-hak'); if (li) li.classList.toggle('an'); });
+  }
   try { wachSperre = await navigator.wakeLock?.request('screen'); } catch {}
 }
 // Kommt die App zurück in den Vordergrund, gibt iOS die Sperre frei: neu anfordern, solange das Blatt offen ist.
