@@ -600,18 +600,18 @@ function nurGewaehltes(text, gruppen, wahl) {
     return zeilen.some(liste) && !rest.some(liste) && !rest.some(z => /^#{1,6}\s/.test(z)) ? null : rest.join('\n');
   }).filter(b => b !== null).join('\n\n');
 }
-const LZEIT = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.8"/><path d="M8 4.8V8l2.2 1.4"/></svg>';
-const LPFEIL = '<svg class="p" width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 3.8 2.5 2.5 2.5-2.5"/></svg>';
+// Gezeichnet wird mit den Klassen und Symbolen des Hubs (.ep-hero, .ep-makros, .ep-abw, .tg-bst …),
+// das Blatt trägt dafür die Klasse .kh. Kein Nachbau: Ändert sich der Dialog, ändert sich der Lauf mit.
 function laufMakros(s) {
   const z = (v, g) => s && v != null ? Math.round(v) + (g ? '<small> g</small>' : '') : '–';
-  return `<div class="lm${s ? '' : ' leer'}"><div><b>${z(s && s.kcal)}</b><span>kcal</span></div><div><b>${z(s && s.carbs, 1)}</b><span>Kohlenhydrate</span></div><div class="eiw"><b>${z(s && s.protein, 1)}</b><span>Eiweiß</span></div><div><b>${z(s && s.fat, 1)}</b><span>Fett</span></div></div>`;
+  return `<div class="ep-makros${s && s.kcal != null ? '' : ' is-leer'}"><div><b>${z(s && s.kcal)}</b><span>kcal</span></div><div><b>${z(s && s.carbs, 1)}</b><span>Kohlenhydrate</span></div><div class="is-eiw"><b>${z(s && s.protein, 1)}</b><span>Eiweiß</span></div><div><b>${z(s && s.fat, 1)}</b><span>Fett</span></div></div>`;
 }
-function laufBild(r, bild, wahl) {
+function laufBild(r, bild, wahl, ik) {
   const w = r.klasse === 'Baukasten' ? wahl.filter(Boolean).join(' + ') : '';
-  return `<div class="lh"${bild ? ` style="background-image:url('${bild}')"` : ''}><div class="lh-t"><div class="lh-n">${esc(r.name)}</div><div class="lh-m"><b>${esc(r.klasse)}</b>${r.dauer ? `<span>${LZEIT}${esc(r.dauer)} Min</span>` : ''}${w ? `<span class="wahl">${esc(w)}</span>` : ''}</div></div></div>`;
+  return `<div class="ep-hero${bild ? '' : ' ohne'}"${bild ? ` style="background-image:url('${bild}')"` : ''}><div class="ep-hero-t"><div class="ep-name">${esc(r.name)}</div><div class="kh-card-meta"><span class="ep-klasse">${esc(r.klasse)}</span>${r.dauer ? `<span>${ik.zeit}${esc(r.dauer)} Min</span>` : ''}${w ? `<span class="lauf-wahl">${esc(w)}</span>` : ''}</div></div></div>`;
 }
 function kochlaufOeffnen(pfad, text, fm, bild, zu) {
-  const r = window.__kh.rezept(pfad);
+  const r = window.__kh.rezept(pfad), ik = window.__kh.ikon || { zeit:'', plus:'+', minus:'−', pfeil:'' };
   const el = document.getElementById('leser');
   let L = laufLesen(pfad);   // { phase, wahl, mengen, haken, offen, zeit }
   let phase = L ? L.phase : 'lesen';
@@ -619,23 +619,23 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
   const zeichnen = () => {
     const alt = el.querySelector('.le-inhalt'), y = alt ? alt.scrollTop : 0;
     const wahl = L ? L.wahl : r.wahl, mengen = L ? L.mengen : r.mengen;
-    let inhalt = laufBild(r, bild, wahl) + laufMakros(r.summe(wahl, mengen)) + videoKnoepfe(fm.video);
+    let inhalt = laufBild(r, bild, wahl, ik) + laufMakros(r.summe(wahl, mengen)) + videoKnoepfe(fm.video);
     if (phase === 'lesen') {
       const t = kochteile(text);
       inhalt += markdown(t.koch) + (t.rest ? `<details class="le-mehr"><summary>Werte und Notizen</summary>${markdown(t.rest)}</details>` : '')
-        + '<div class="lf"><button data-los>Kochen starten</button></div>';
+        + '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta" data-los>Kochen starten</button></div>';
     } else if (phase === 'waehlen') {
       inhalt += r.gruppen.map((g, gi) => {
         const auf = L.offen === gi || (L.offen == null && gi === 0 && !L.wahl.some(Boolean));
-        return `<div class="lr${auf ? ' auf' : ''}" data-reihe="${gi}" role="button"><span class="l">${esc(g.name)}</span><span class="w${L.wahl[gi] ? '' : ' leer'}">${esc(L.wahl[gi] || 'keine')}</span>${LPFEIL}</div>`
-          + (auf ? `<div class="lc">${g.optionen.map(o => `<span class="${L.wahl[gi] === o ? 'an' : ''}" data-g="${gi}" data-o="${esc(o)}" role="button">${esc(o)}</span>`).join('')}</div>` : '');
+        return `<div class="ep-abw${auf ? ' is-auf' : ''}" data-reihe="${gi}" role="button"><span class="l">${esc(g.name)}</span><span class="w${L.wahl[gi] ? '' : ' leer'}">${esc(L.wahl[gi] || 'keine')}</span>${ik.pfeil}</div>`
+          + (auf ? `<div class="ep-chips">${g.optionen.map(o => `<div class="ml-pp-opt${L.wahl[gi] === o ? ' is-sel' : ''}" data-g="${gi}" data-o="${esc(o)}" role="button">${esc(o)}</div>`).join('')}</div>` : '');
       }).join('');
       const tl = r.teile(L.wahl, L.mengen);
-      if (Array.isArray(tl) && tl.length) inhalt += '<div class="lt">Mengen</div><div class="lb">' + tl.map(b => {
+      if (Array.isArray(tl) && tl.length) inhalt += '<div class="kh-pp-lbl" style="margin:18px 0 6px 2px">Bestandteile</div><div class="tg-bst">' + tl.map(b => {
         const sch = b.schritt, menge = b.n == null ? (sch ? `? ${sch.e}` : '?') : (sch ? `${Math.round(b.n * sch.g * 100) / 100} ${sch.e}` : b.n);
-        return `<div class="${b.n == null ? 'offen' : ''}"><span class="n">${esc(b.name)}</span><span class="ls"><span data-m="${esc(b.name)}" data-d="-1" role="button">−</span><span class="z">${esc(menge)}</span><span data-m="${esc(b.name)}" data-d="1" role="button">+</span></span><span class="k">${b.n == null ? 'Menge?' : b.kcal == null ? '' : Math.round(b.kcal * b.n) + ' kcal'}</span></div>`;
+        return `<div class="tg-bst-z${b.n == null ? ' is-offen' : ''}"><div class="tg-bst-n">${esc(b.name)}</div><div class="ep-step"><span data-m="${esc(b.name)}" data-d="-1" role="button" aria-label="Weniger">${ik.minus}</span><span class="z">${esc(menge)}</span><span data-m="${esc(b.name)}" data-d="1" role="button" aria-label="Mehr">${ik.plus}</span></div><div class="tg-bst-k">${b.n == null ? 'Menge?' : b.kcal == null ? '' : Math.round(b.kcal * b.n) + ' kcal'}</div></div>`;
       }).join('') + '</div>';
-      inhalt += '<div class="lf"><button data-weiter>Weiter</button></div>';
+      inhalt += '<div class="lf"><button class="kh-dlg-btn kh-prim ep-cta" data-weiter>Weiter</button></div>';
     } else {
       const t = kochteile(nurGewaehltes(text, r.gruppen, L.wahl));
       let n = 0;
@@ -644,9 +644,9 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
         return markdown(a).replace(/<li class="le-hak/g, () => `<li data-n="${n++}" data-art="${art}" class="le-hak`);
       }).join('') + '<div id="lf"></div>';
     }
-    el.innerHTML = `<div class="le-blatt" role="dialog" aria-modal="true"><div class="le-kopf ohne-titel"><b></b>${phase === 'lesen' ? '<span style="flex:1"></span>' : '<div class="kf"></div>'}<button class="le-zu" aria-label="Schließen">✕</button></div><div class="le-inhalt">${inhalt}</div></div>`;
+    el.innerHTML = `<div class="le-blatt kh lauf" role="dialog" aria-modal="true"><div class="ep-kopf lauf-kopf">${phase === 'lesen' ? '<span style="flex:1"></span>' : '<div class="kf"></div>'}<button class="kh-close" aria-label="Schließen">✕</button></div><div class="le-inhalt">${inhalt}</div></div>`;
     el.querySelector('.le-inhalt').scrollTop = y;
-    el.querySelector('.le-zu').onclick = schliessen;
+    el.querySelector('.kh-close').onclick = schliessen;
     if (phase === 'kochen') { el.querySelectorAll('li[data-n]').forEach(li => li.classList.toggle('an', L.haken.includes(li.dataset.n))); balken(false); }
     else if (phase === 'waehlen') balken(false, true);
   };
@@ -664,7 +664,7 @@ function kochlaufOeffnen(pfad, text, fm, bild, zu) {
     alle.forEach(li => li.classList.remove('jetzt'));
     if (vV) alle.find(li => li.dataset.art === 'k' && !L.haken.includes(li.dataset.n))?.classList.add('jetzt');
     const fertig = vV && kV, fuss = el.querySelector('#lf');
-    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button data-eintragen>Als gegessen eintragen</button>' : '';
+    fuss.className = fertig ? 'lf' : ''; fuss.innerHTML = fertig ? '<button class="kh-dlg-btn kh-prim ep-cta" data-eintragen>Als gegessen eintragen</button>' : '';
     if (L) { L.fertig = fertig; speichern(); }
   };
   // Nach „Fertig“ ist der Lauf vorbei: Schließen räumt ihn ab.
